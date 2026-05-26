@@ -1010,7 +1010,7 @@
         initThemeToggle();
         
         // 加载数据并显示动画
-        fetch('final_cleaned_travel_data.csv?' + Date.now())
+        fetch('../data/final_cleaned_travel_data.csv?' + Date.now())
             .then(response => response.text())
             .then(csvText => {
                 const data = parseCSV(csvText);
@@ -1138,7 +1138,7 @@
             const overlay = document.getElementById('overlayMask');
             
             // 更新城市图片
-            const imageUrl = `travel_images/${cityData.id}.jpg`;
+            const imageUrl = `../static/images/travel_images/${cityData.id}.jpg`;
             const imgElement = document.getElementById('cityDetailImage');
             imgElement.src = imageUrl;
             imgElement.onerror = function() {

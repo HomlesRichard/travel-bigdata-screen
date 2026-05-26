@@ -2,7 +2,7 @@ from flask import Flask, render_template
 from pyecharts.charts import Radar
 from jinja2 import Markup
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 
 def create_radar():
     # 假设这是你清洗后的全球旅游数据

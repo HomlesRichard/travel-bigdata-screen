@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 
-def create_globe_from_csv(csv_file="final_cleaned_travel_data.csv", output_html="travel_globe.html"):
+def create_globe_from_csv(csv_file="../data/final_cleaned_travel_data.csv", output_html="../templates/travel_globe.html"):
     # 读取数据
     df = pd.read_csv(csv_file)
 

@@ -1,4 +1,7 @@
-# 忽略下载的旅游图片文件夹
+# 忽略新路径下的旅游图片文件夹（极其重要，防止几百兆图片误传到 GitHub）
+static/images/travel_images/
+
+# 之前的旧路径也可以保留，防止有残留
 travel_images/
 travel_images_search/
 

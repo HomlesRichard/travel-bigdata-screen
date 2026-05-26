@@ -3,7 +3,7 @@ import numpy as np
 import json
 
 # 1. 基础清理
-df = pd.read_csv('Worldwide Travel Cities Dataset (Ratings and Climate).csv')
+df = pd.read_csv('../data/Worldwide Travel Cities Dataset (Ratings and Climate).csv')
 df.drop_duplicates(inplace=True)
 df.columns = df.columns.str.strip()
 
@@ -46,7 +46,7 @@ df_clean = df[['id', 'city', 'country', 'region', 'latitude', 'longitude',
                'budget_score', 'top_trait', 'ideal_durations']]
 
 # 7. 保存为清洗后的版本，使用默认的引号处理
-df_clean.to_csv('final_cleaned_travel_data.csv', index=False)
+df_clean.to_csv('../data/final_cleaned_travel_data.csv', index=False)
 
 # 输出统计结果
 print("各特质分布统计：")
