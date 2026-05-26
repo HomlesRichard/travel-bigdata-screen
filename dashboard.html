@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全球旅游城市数据大屏</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        @font-face {
+            font-family: 'SF Pro Display';
+            src: local('SF Pro Display'), local('SFProDisplay-Regular');
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        html, body {
+            height: 100%;
+            overflow-x: hidden;
+        }
+
+        /* CSS 变量定义 */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f7;
+            --bg-tertiary: #ffffff;
+            --bg-card: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --accent-color: #0071e3;
+            --accent-hover: #0077ed;
+            --border-color: rgba(0, 0, 0, 0.06);
+            --shadow-color: rgba(0, 0, 0, 0.03);
+            --navbar-bg: rgba(255, 255, 255, 0.85);
+            --land-color: #f5f5f7;
+            --ocean-color: #e8f4fc;
+            --country-color: #d1d1d6;
+        }
+
+        /* 暗色主题 */
+        body.dark-theme {
+            --bg-primary: #000000;
+            --bg-secondary: #1d1d1f;
+            --bg-tertiary: #161617;
+            --bg-card: #1d1d1f;
+            --text-primary: #f5f5f7;
+            --text-secondary: #a1a1a6;
+            --accent-color: #2997ff;
+            --accent-hover: #4da3ff;
+            --border-color: rgba(255, 255, 255, 0.12);
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --navbar-bg: rgba(29, 29, 31, 0.85);
+            --land-color: #424245;
+            --ocean-color: #1d1d1f;
+            --country-color: #424245;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 30%, var(--bg-primary) 100%);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: background 0.4s cubic-bezier(0.25, 1, 0.5, 1), color 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* 主题切换按钮 */
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-secondary);
+            transform: scale(1.05);
+        }
+
+        .theme-icon {
+            font-size: 1.25rem;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .theme-toggle:hover .theme-icon {
+            transform: rotate(20deg);
+        }
+
+        /* 加载动画 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loading-spinner {
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--bg-secondary);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-spinner p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 12px 24px;
+            background: var(--navbar-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.4s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .navbar-brand {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .navbar-nav {
+            display: flex;
+            gap: 24px;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-link.active {
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
+        .dashboard {
+            padding-top: 70px;
+            min-height: 100vh;
+        }
+
+        .hero-section {
+            padding: 40px 24px;
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto 32px;
+        }
+
+        .hero-title {
+            font-size: 3rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            padding: 0 24px 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 24px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            transform: translateY(0);
+            opacity: 0;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .stat-card.visible {
+            opacity: 1;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 32px var(--shadow-color);
+            border-color: var(--accent-color);
+        }
+
+        .stat-card.active {
+            border-color: var(--accent-color);
+            box-shadow: 0 4px 16px var(--shadow-color);
+        }
+
+        .city-dropdown-panel {
+            position: fixed;
+            top: 90px;
+            right: 24px;
+            width: 340px;
+            height: calc(100vh - 130px);
+            background: var(--navbar-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+            box-shadow: -8px 12px 32px var(--shadow-color);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            transform: translateX(400px);
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .city-dropdown-panel.active {
+            transform: translateX(0);
+        }
+
+        .panel-header-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .panel-search-box {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 0.9rem;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            outline: none;
+            margin-bottom: 16px;
+            transition: all 0.3s;
+        }
+        .panel-search-box:focus {
+            border-color: var(--accent-color);
+            background: var(--bg-card);
+            box-shadow: 0 0 0 3px var(--shadow-color);
+        }
+
+        .panel-city-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .panel-city-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .panel-city-list::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 3px;
+        }
+
+        .panel-city-list::-webkit-scrollbar-thumb {
+            background: var(--text-secondary);
+            border-radius: 3px;
+        }
+
+        .panel-city-list::-webkit-scrollbar-thumb:hover {
+            background: var(--text-primary);
+        }
+
+        .panel-city-list li {
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+        }
+
+        .region-group-item {
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .region-group-item:hover {
+            background: var(--bg-secondary);
+            color: var(--accent-color);
+        }
+
+        .region-group-item .region-arrow {
+            display: inline-block;
+            transition: transform 0.2s;
+            margin-right: 6px;
+        }
+
+        .region-group-item.open .region-arrow {
+            transform: rotate(90deg);
+        }
+
+        .region-group-item .region-name {
+            font-weight: 500;
+        }
+
+        .region-group-item .region-count {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-left: 8px;
+        }
+
+        .sub-city-list {
+            list-style: none;
+            padding: 0;
+            margin: 8px 0 8px 24px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .region-group-item.open .sub-city-list {
+            max-height: 1000px;
+        }
+
+        .sub-city-list li {
+            padding: 6px 14px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 2px;
+            transition: all 0.2s;
+        }
+
+        .sub-city-list li:hover {
+            background: var(--bg-secondary);
+            color: var(--accent-color);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 400;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 28px;
+            padding: 0 24px 32px;
+            max-width: 1600px;
+            margin: 0 auto;
+            align-items: stretch;
+        }
+
+        .left-panel, .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+            height: 100%;
+        }
+
+        .globe-section {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            display: flex;
+            flex-direction: column;
+            height: 450px;
+            flex-shrink: 0;
+            transition: box-shadow 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        #budget-card-fixed, .side-panel .chart-container {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .globe-section:hover {
+            box-shadow: 0 12px 32px var(--shadow-color);
+        }
+
+        .globe-section h3 {
+            font-size: 1rem;
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        .chart-container {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            transform: translateY(0);
+            opacity: 0;
+        }
+
+        .chart-container.visible {
+            opacity: 1;
+        }
+
+        .chart-container:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px var(--shadow-color);
+        }
+
+        .chart-container h3 {
+            font-size: 1rem;
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .chart-wrapper {
+            flex: 1;
+            min-height: 0;
+            width: 100%;
+        }
+
+        .bottom-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            padding: 0 24px 48px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .top-cities-list {
+            list-style: none;
+            padding: 0;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .top-cities-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 18px;
+            margin-bottom: 8px;
+            background: var(--bg-secondary);
+            border-radius: 14px;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            border: 1px solid transparent;
+        }
+
+        .top-cities-list li:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent-color);
+            transform: translateX(4px);
+        }
+
+        .city-name {
+            font-weight: 500;
+            font-size: 0.9375rem;
+            color: var(--text-primary);
+        }
+
+        .city-score {
+            color: var(--accent-color);
+            font-weight: 600;
+            font-size: 0.9375rem;
+            padding: 4px 12px;
+            background: var(--shadow-color);
+            border-radius: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar-nav {
+                display: none;
+            }
+            .hero-title {
+                font-size: 2rem;
+            }
+            .hero-subtitle {
+                font-size: 1rem;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+            .stat-value {
+                font-size: 2rem;
+            }
+            .bottom-section {
+                grid-template-columns: 1fr;
+            }
+            .navbar {
+                padding: 12px 16px;
+            }
+            .hero-section {
+                padding: 24px 16px;
+            }
+            .main-content, .bottom-section {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .hero-title {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* 城市详情面板 */
+        .city-detail-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            width: 90%;
+            max-width: 600px;
+            max-height: 85vh;
+            background: var(--bg-card);
+            border-radius: 32px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 60px var(--shadow-color);
+            z-index: 3000;
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .city-detail-panel.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .city-detail-panel .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 1.25rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: all 0.3s;
+        }
+
+        .city-detail-panel .close-btn:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: scale(1.1);
+        }
+
+        .city-detail-panel .city-image-container {
+            width: 100%;
+            height: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .city-detail-panel .city-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .city-detail-panel .city-image-placeholder {
+            width: 100%;
+            height: 100%;
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+
+        .city-detail-panel .city-info {
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .city-detail-panel .city-name {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .city-detail-panel .city-location {
+            font-size: 0.9375rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .city-detail-panel .city-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .city-detail-panel .tag {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .city-detail-panel .tag.budget-luxury {
+            background: rgba(255, 149, 0, 0.15);
+            color: #ff9500;
+            border-color: rgba(255, 149, 0, 0.3);
+        }
+
+        .city-detail-panel .tag.budget-mid {
+            background: rgba(90, 200, 250, 0.15);
+            color: #5ac8fa;
+            border-color: rgba(90, 200, 250, 0.3);
+        }
+
+        .city-detail-panel .tag.budget-budget {
+            background: rgba(52, 199, 89, 0.15);
+            color: #34c759;
+            border-color: rgba(52, 199, 89, 0.3);
+        }
+
+        .city-detail-panel .section-title {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .city-detail-panel .traits-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .city-detail-panel .trait-item {
+            background: var(--bg-secondary);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .city-detail-panel .trait-name {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .city-detail-panel .trait-score {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .city-detail-panel .radar-chart-container {
+            height: 200px;
+            margin-bottom: 20px;
+        }
+
+        /* 遮罩层 */
+        .overlay-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            z-index: 2999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .overlay-mask.active {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">🌍 全球旅游</div>
+        <div class="navbar-nav">
+            <a href="#overview" class="nav-link active">概述</a>
+            <a href="#regions" class="nav-link">区域分析</a>
+            <a href="#cities" class="nav-link">城市排行</a>
+        </div>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+            <span class="theme-icon">🌙</span>
+        </button>
+    </nav>
+
+    <!-- 加载骨架屏 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>正在加载数据...</p>
+        </div>
+    </div>
+
+    <!-- 遮罩层 -->
+    <div class="overlay-mask" id="overlayMask"></div>
+
+    <!-- 城市详情面板 -->
+    <div class="city-detail-panel" id="cityDetailPanel">
+        <button class="close-btn" id="cityDetailClose">&times;</button>
+        <div class="city-image-container">
+            <img class="city-image" id="cityDetailImage" src="" alt="城市图片" />
+        </div>
+        <div class="city-info">
+            <h2 class="city-name" id="cityDetailName"></h2>
+            <p class="city-location" id="cityDetailLocation"></p>
+            <div class="city-tags" id="cityDetailTags"></div>
+            <div class="section-title">🏆 评分</div>
+            <div class="traits-grid" id="cityDetailTraits"></div>
+            <div class="section-title">📊 特质雷达图</div>
+            <div class="radar-chart-container" id="cityDetailRadar"></div>
+        </div>
+    </div>
+
+    <div class="dashboard" id="dashboard" style="opacity: 0;">
+        <section id="overview" class="hero-section">
+            <h1 class="hero-title">全球旅游城市数据大屏</h1>
+            <p class="hero-subtitle">探索全球560座精选旅游城市</p>
+        </section>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-cities">-</div>
+                <div class="stat-label">城市总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-regions">-</div>
+                <div class="stat-label">覆盖区域</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="luxury-count">-</div>
+                <div class="stat-label">奢华目的地</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="culture-count">-</div>
+                <div class="stat-label">文化之都</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="beach-count">-</div>
+                <div class="stat-label">海滨胜地</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="globe-section">
+                    <h3>全球分布</h3>
+                    <div id="globe" class="chart-wrapper"></div>
+                </div>
+                <div class="chart-container" id="budget-card-fixed">
+                    <h3>预算等级</h3>
+                    <div id="budget-chart" class="chart-wrapper"></div>
+                </div>
+            </div>
+            <div class="side-panel">
+                <div id="cities" class="chart-container">
+                    <h3>TOP 10城市</h3>
+                    <ul class="top-cities-list" id="top-cities-list"></ul>
+                </div>
+                <div class="chart-container">
+                    <h3>旅行时长</h3>
+                    <div id="duration-chart" class="chart-wrapper"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-section">
+            <div class="chart-container">
+                <h3>城市特质</h3>
+                <div id="trait-chart" class="chart-wrapper"></div>
+            </div>
+            <div id="regions" class="chart-container">
+                <h3>区域分布</h3>
+                <div id="region-chart" class="chart-wrapper"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            const headers = parseCSVLine(lines[0]).map(h => h.trim());
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    const values = parseCSVLine(lines[i]);
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index] || '';
+                    });
+                    data.push(row);
+                }
+            }
+            return data;
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current);
+            return result;
+        }
+
+        // 主题切换功能
+        function initThemeToggle() {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = themeToggle.querySelector('.theme-icon');
+            
+            // 从本地存储获取上次选择的主题
+            const savedTheme = localStorage.getItem('travelDashboardTheme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                themeIcon.textContent = '☀️';
+            }
+            
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-theme');
+                const isDark = document.body.classList.contains('dark-theme');
+                
+                // 更新图标
+                themeIcon.textContent = isDark ? '☀️' : '🌙';
+                
+                // 保存到本地存储
+                localStorage.setItem('travelDashboardTheme', isDark ? 'dark' : 'light');
+                
+                // 如果地图已加载，更新地图颜色
+                const globeDiv = document.getElementById('globe');
+                if (globeDiv && globeDiv.data) {
+                    updateGlobeTheme(isDark);
+                }
+            });
+        }
+        
+        // 更新地图主题配色
+        function updateGlobeTheme(isDark) {
+            const update = {
+                'geo.landcolor': isDark ? '#424245' : '#f5f5f7',
+                'geo.oceancolor': isDark ? '#1d1d1f' : '#e8f4fc',
+                'geo.countrycolor': isDark ? '#424245' : '#d1d1d6',
+                'geo.coastlinecolor': isDark ? '#424245' : '#d1d1d6',
+                'geo.bgcolor': 'rgba(0,0,0,0)',
+                'geo.lakecolor': isDark ? '#1d1d1f' : '#e8f4fc',
+                'geo.lonaxis.gridcolor': isDark ? '#424245' : '#e8e8ed',
+                'geo.lataxis.gridcolor': isDark ? '#424245' : '#e8e8ed',
+                'paper_bgcolor': 'rgba(0,0,0,0)',
+                'plot_bgcolor': 'rgba(0,0,0,0)'
+            };
+            
+            const markerUpdate = {
+                'marker.color': isDark ? '#2997ff' : '#0071e3',
+                'marker.line.color': isDark ? '#1d1d1f' : '#ffffff'
+            };
+            
+            Plotly.relayout('globe', update);
+            Plotly.restyle('globe', markerUpdate, 0);
+        }
+        
+        // 初始化主题切换
+        initThemeToggle();
+        
+        // 加载数据并显示动画
+        fetch('final_cleaned_travel_data.csv?' + Date.now())
+            .then(response => response.text())
+            .then(csvText => {
+                const data = parseCSV(csvText);
+                
+                console.log('=== 数据调试信息 ===');
+                console.log('CSV前50字符:', csvText.substring(0, 50));
+                console.log('数据行数:', data.length);
+                console.log('第一行数据:', data[0]);
+                
+                if (data.length > 0 && data[0].top_trait) {
+                    console.log('第一个城市的top_trait:', data[0].top_trait);
+                }
+                
+                updateStats(data);
+                createGlobe(data);
+                createRegionChart(data);
+                createBudgetChart(data);
+                createDurationChart(data);
+                createTraitChart(data);
+                createTopCitiesList(data);
+                initStatCardInteraction(data);
+                
+                // 隐藏加载动画，显示内容
+                setTimeout(() => {
+                    const loadingOverlay = document.getElementById('loadingOverlay');
+                    const dashboard = document.getElementById('dashboard');
+                    
+                    loadingOverlay.classList.add('hidden');
+                    dashboard.style.transition = 'opacity 0.6s ease';
+                    dashboard.style.opacity = '1';
+                    
+                    animateCards();
+                }, 800);
+            })
+            .catch(error => {
+                console.error('数据加载失败:', error);
+                // 即使加载失败，也要显示内容
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                const dashboard = document.getElementById('dashboard');
+                loadingOverlay.classList.add('hidden');
+                dashboard.style.opacity = '1';
+            });
+
+        function animateCards() {
+            const cards = document.querySelectorAll('.stat-card, .chart-container');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.add('visible');
+                }, index * 100);
+            });
+        }
+
+        function flyToCity(targetLon, targetLat, cityName) {
+            const globeDiv = document.getElementById('globe');
+            if (!globeDiv || !globeDiv.layout || !globeDiv.layout.geo) return;
+
+            const geo = globeDiv.layout.geo;
+            const startLon = geo.projection.rotation.lon || 0;
+            const startLat = geo.projection.rotation.lat || 0;
+            const startScale = geo.projection.scale || 1;
+
+            const endLon = parseFloat(targetLon);
+            const endLat = parseFloat(targetLat);
+            const endScale = 3.5;
+
+            let diffLon = endLon - startLon;
+            if (diffLon > 180) diffLon -= 360;
+            if (diffLon < -180) diffLon += 360;
+
+            const highlightTrace = {
+                type: 'scattergeo',
+                lon: [endLon],
+                lat: [endLat],
+                mode: 'markers+text',
+                text: [`📍 ${cityName}`],
+                textposition: 'top center',
+                marker: {
+                    size: 14,
+                    color: '#ff3b30',
+                    line: { width: 3, color: '#ffffff' }
+                },
+                textfont: { size: 14, color: '#1d1d1f', weight: 'bold' },
+                hoverinfo: 'none'
+            };
+
+            while (globeDiv.data.length > 1) {
+                Plotly.deleteTraces('globe', 1);
+            }
+            
+            Plotly.addTraces('globe', highlightTrace);
+
+            const duration = 1500;
+            let startTime = null;
+
+            function animationStep(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                const ease = progress < 0.5
+                    ? 4 * progress * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+                const currentLon = startLon + diffLon * ease;
+                const currentLat = startLat + (endLat - startLat) * ease;
+                const currentScale = startScale + (endScale - startScale) * ease;
+
+                Plotly.relayout('globe', {
+                    'geo.projection.rotation.lon': currentLon,
+                    'geo.projection.rotation.lat': currentLat,
+                    'geo.projection.scale': currentScale
+                });
+
+                if (progress < 1) {
+                    requestAnimationFrame(animationStep);
+                }
+            }
+
+            requestAnimationFrame(animationStep);
+        }
+
+        // 显示城市详情面板
+        function showCityDetail(cityData) {
+            const panel = document.getElementById('cityDetailPanel');
+            const overlay = document.getElementById('overlayMask');
+            
+            // 更新城市图片
+            const imageUrl = `travel_images/${cityData.id}.jpg`;
+            const imgElement = document.getElementById('cityDetailImage');
+            imgElement.src = imageUrl;
+            imgElement.onerror = function() {
+                this.style.display = 'none';
+                const container = this.parentElement;
+                const placeholder = document.createElement('div');
+                placeholder.className = 'city-image-placeholder';
+                placeholder.textContent = '🌆';
+                container.appendChild(placeholder);
+            };
+            imgElement.onload = function() {
+                this.style.display = 'block';
+                const placeholder = this.parentElement.querySelector('.city-image-placeholder');
+                if (placeholder) placeholder.remove();
+            };
+            
+            // 更新城市名称和位置
+            document.getElementById('cityDetailName').textContent = cityData.city;
+            document.getElementById('cityDetailLocation').textContent = `${cityData.country} · ${cityData.region}`;
+            
+            // 更新标签
+            const tagsContainer = document.getElementById('cityDetailTags');
+            tagsContainer.innerHTML = '';
+            
+            // 预算标签
+            const budgetTag = document.createElement('span');
+            budgetTag.className = `tag budget-${cityData.budget_level.toLowerCase().replace('-', '')}`;
+            budgetTag.textContent = cityData.budget_level;
+            tagsContainer.appendChild(budgetTag);
+            
+            // 特色标签
+            const traitTag = document.createElement('span');
+            traitTag.className = 'tag';
+            const traitMapping = {
+                'culture': '文化',
+                'adventure': '冒险',
+                'nature': '自然',
+                'beaches': '海滩',
+                'nightlife': '夜生活',
+                'cuisine': '美食',
+                'wellness': '健康',
+                'urban': '都市',
+                'seclusion': '隐居'
+            };
+            traitTag.textContent = traitMapping[cityData.top_trait] || cityData.top_trait;
+            tagsContainer.appendChild(traitTag);
+            
+            // 更新评分网格
+            const traitsGrid = document.getElementById('cityDetailTraits');
+            traitsGrid.innerHTML = '';
+            
+            const traits = [
+                { name: '文化', key: 'culture' },
+                { name: '冒险', key: 'adventure' },
+                { name: '自然', key: 'nature' },
+                { name: '海滩', key: 'beaches' },
+                { name: '美食', key: 'cuisine' },
+                { name: '都市', key: 'urban' }
+            ];
+            
+            traits.forEach(trait => {
+                const score = parseFloat(cityData[trait.key]) || 0;
+                const item = document.createElement('div');
+                item.className = 'trait-item';
+                item.innerHTML = `
+                    <div class="trait-name">${trait.name}</div>
+                    <div class="trait-score">${score}</div>
+                `;
+                traitsGrid.appendChild(item);
+            });
+            
+            // 更新雷达图
+            updateRadarChart(cityData);
+            
+            // 显示面板
+            overlay.classList.add('active');
+            panel.classList.add('active');
+            
+            // 点击遮罩层关闭
+            overlay.onclick = closeCityDetail;
+        }
+        
+        // 关闭城市详情面板
+        function closeCityDetail() {
+            const panel = document.getElementById('cityDetailPanel');
+            const overlay = document.getElementById('overlayMask');
+            
+            panel.classList.remove('active');
+            overlay.classList.remove('active');
+        }
+        
+        // 更新雷达图
+        function updateRadarChart(cityData) {
+            const traits = ['culture', 'adventure', 'nature', 'beaches', 'nightlife', 'cuisine', 'wellness', 'urban', 'seclusion'];
+            const traitLabels = ['文化', '冒险', '自然', '海滩', '夜生活', '美食', '健康', '都市', '隐居'];
+            
+            const values = traits.map(t => parseFloat(cityData[t]) || 0);
+            
+            const isDark = document.body.classList.contains('dark-theme');
+            
+            const layout = {
+                polar: {
+                    radialaxis: {
+                        visible: true,
+                        range: [0, 5],
+                        gridcolor: isDark ? '#424245' : '#e8e8ed',
+                        linecolor: isDark ? '#424245' : '#e8e8ed',
+                        tickcolor: isDark ? '#a1a1a6' : '#6e6e73',
+                        tickfont: { color: isDark ? '#a1a1a6' : '#6e6e73' }
+                    },
+                    angularaxis: {
+                        tickfont: { color: isDark ? '#a1a1a6' : '#6e6e73' },
+                        linecolor: isDark ? '#424245' : '#e8e8ed',
+                        gridcolor: isDark ? '#424245' : '#e8e8ed'
+                    },
+                    bgcolor: 'rgba(0,0,0,0)'
+                },
+                showlegend: false,
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: { l: 10, r: 10, t: 10, b: 10 }
+            };
+            
+            const trace = {
+                type: 'scatterpolar',
+                r: values,
+                theta: traitLabels,
+                fill: 'toself',
+                fillcolor: isDark ? 'rgba(41, 151, 255, 0.2)' : 'rgba(0, 113, 227, 0.2)',
+                line: {
+                    color: isDark ? '#2997ff' : '#0071e3',
+                    width: 2
+                },
+                marker: {
+                    color: isDark ? '#2997ff' : '#0071e3',
+                    size: 4
+                }
+            };
+            
+            Plotly.newPlot('cityDetailRadar', [trace], layout, { 
+                responsive: true, 
+                displayModeBar: false 
+            });
+        }
+
+        // 绑定关闭按钮事件
+        document.getElementById('cityDetailClose').addEventListener('click', closeCityDetail);
+
+        function initStatCardInteraction(data) {
+            const statCards = document.querySelectorAll('.stat-card');
+            let activeCard = null;
+            
+            function showCityPanel(cardElement, filteredCities, titleText) {
+                const oldPanel = document.querySelector('.city-dropdown-panel');
+                if (oldPanel) {
+                    oldPanel.classList.remove('active');
+                    setTimeout(() => oldPanel.remove(), 400);
+                }
+
+                const regionMapping = {
+                    'europe': '欧洲',
+                    'north_america': '北美',
+                    'asia': '亚洲',
+                    'africa': '非洲',
+                    'south_america': '南美',
+                    'oceania': '大洋洲',
+                    'middle_east': '中东'
+                };
+
+                const panel = document.createElement('div');
+                panel.className = 'city-dropdown-panel';
+                
+                panel.innerHTML = `
+                    <div class="panel-header-title">${titleText}</div>
+                    <input type="text" class="panel-search-box" id="panel-search" placeholder="搜索城市或国家..." autocomplete="off">
+                    <ul class="panel-city-list" id="panel-list-container"></ul>
+                `;
+                
+                document.body.appendChild(panel);
+
+                setTimeout(() => panel.classList.add('active'), 10);
+
+                const searchInput = panel.querySelector('#panel-search');
+                const listContainer = panel.querySelector('#panel-list-container');
+
+                function renderFlatList(citiesToRender) {
+                    listContainer.innerHTML = '';
+                    if (citiesToRender.length === 0) {
+                        listContainer.innerHTML = `<li style="color:#6e6e73; text-align:center; cursor:default; background:none;">未找到相关城市</li>`;
+                        return;
+                    }
+                    citiesToRender.forEach(city => {
+                        const li = document.createElement('li');
+                        li.textContent = `${city.city}, ${city.country}`;
+                        li.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (typeof flyToCity === 'function') {
+                                flyToCity(city.longitude, city.latitude, city.city);
+                            }
+                            panel.classList.remove('active');
+                            setTimeout(() => panel.remove(), 400);
+                            cardElement.classList.remove('active');
+                            activeCard = null;
+                        });
+                        listContainer.appendChild(li);
+                    });
+                }
+
+                function renderRegionGroups(citiesToRender, keyword = '') {
+                    listContainer.innerHTML = '';
+                    
+                    const groups = {};
+                    citiesToRender.forEach(city => {
+                        const region = city.region || 'other';
+                        if (!groups[region]) {
+                            groups[region] = [];
+                        }
+                        groups[region].push(city);
+                    });
+
+                    const sortedRegions = Object.keys(groups).sort((a, b) => {
+                        const order = ['europe', 'north_america', 'asia', 'south_america', 'oceania', 'africa', 'middle_east', 'other'];
+                        return (order.indexOf(a) || 99) - (order.indexOf(b) || 99);
+                    });
+
+                    if (sortedRegions.length === 0) {
+                        listContainer.innerHTML = `<li style="color:#6e6e73; text-align:center; cursor:default; background:none;">未找到相关城市</li>`;
+                        return;
+                    }
+
+                    sortedRegions.forEach(region => {
+                        const regionCities = groups[region];
+                        const regionName = regionMapping[region] || region;
+                        const hasMatch = keyword ? regionCities.some(c => 
+                            (c.city && c.city.toLowerCase().includes(keyword)) ||
+                            (c.country && c.country.toLowerCase().includes(keyword))
+                        ) : true;
+                        const shouldOpen = keyword ? hasMatch : false;
+
+                        const groupItem = document.createElement('li');
+                        groupItem.className = `region-group-item${shouldOpen ? ' open' : ''}`;
+                        groupItem.innerHTML = `
+                            <span class="region-arrow">▶</span>
+                            <span class="region-name">${regionName}</span>
+                            <span class="region-count">${regionCities.length}</span>
+                        `;
+
+                        const subList = document.createElement('ul');
+                        subList.className = 'sub-city-list';
+
+                        const filteredCities = keyword ? regionCities.filter(c =>
+                            (c.city && c.city.toLowerCase().includes(keyword)) ||
+                            (c.country && c.country.toLowerCase().includes(keyword))
+                        ) : regionCities;
+
+                        filteredCities.forEach(city => {
+                            const cityLi = document.createElement('li');
+                            cityLi.textContent = `${city.city}, ${city.country}`;
+                            cityLi.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                if (typeof flyToCity === 'function') {
+                                    flyToCity(city.longitude, city.latitude, city.city);
+                                }
+                                panel.classList.remove('active');
+                                setTimeout(() => panel.remove(), 400);
+                                cardElement.classList.remove('active');
+                                activeCard = null;
+                            });
+                            subList.appendChild(cityLi);
+                        });
+
+                        groupItem.appendChild(subList);
+                        groupItem.addEventListener('click', () => {
+                            groupItem.classList.toggle('open');
+                        });
+
+                        listContainer.appendChild(groupItem);
+                    });
+                }
+
+                if (titleText === '覆盖区域') {
+                    renderRegionGroups(filteredCities);
+                } else {
+                    renderFlatList(filteredCities);
+                }
+
+                searchInput.focus();
+                
+                panel.addEventListener('click', (e) => e.stopPropagation());
+
+                searchInput.addEventListener('input', (e) => {
+                    const keyword = e.target.value.toLowerCase().trim();
+                    
+                    if (titleText === '覆盖区域') {
+                        renderRegionGroups(filteredCities, keyword);
+                    } else {
+                        const matched = filteredCities.filter(c =>
+                            (c.city && c.city.toLowerCase().includes(keyword)) ||
+                            (c.country && c.country.toLowerCase().includes(keyword))
+                        );
+                        renderFlatList(matched);
+                    }
+                });
+            }
+            
+            statCards.forEach((card, index) => {
+                card.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    
+                    let filteredData = [];
+                    let title = '';
+                    
+                    switch(index) {
+                        case 0:
+                            filteredData = data;
+                            title = '全部城市';
+                            break;
+                        case 1:
+                            filteredData = data; // 传递完整的城市数据
+                            title = '覆盖区域';
+                            break;
+                        case 2:
+                            filteredData = data.filter(d => d.budget_level && d.budget_level.trim() === 'Luxury');
+                            title = '奢华目的地';
+                            break;
+                        case 3:
+                            filteredData = data.filter(d => {
+                                const trait = d.top_trait;
+                                const result = trait && trait.trim() === 'culture';
+                                if (result) {
+                                    console.log('匹配到文化之都:', d.city, trait);
+                                }
+                                return result;
+                            });
+                            console.log('文化之都过滤完成，数量:', filteredData.length);
+                            title = '文化之都';
+                            break;
+                        case 4:
+                            filteredData = data.filter(d => d.top_trait && d.top_trait.trim() === 'beaches');
+                            title = '海滨胜地';
+                            break;
+                    }
+                    
+                    const existingPanel = document.querySelector('.city-dropdown-panel');
+                    if (existingPanel) {
+                        existingPanel.remove();
+                    }
+                    
+                    if (activeCard === card) {
+                        card.classList.remove('active');
+                        activeCard = null;
+                        return;
+                    }
+                    
+                    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                    activeCard = card;
+                    
+                    showCityPanel(card, filteredData, title);
+                });
+            });
+            
+            document.addEventListener('click', function() {
+                const panel = document.querySelector('.city-dropdown-panel');
+                if (panel) {
+                    panel.classList.remove('active');
+                    setTimeout(() => panel.remove(), 400);
+                }
+                document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+                activeCard = null;
+            });
+        }
+
+        function updateStats(data) {
+            const regionCounts = {};
+            const budgetCounts = {};
+            const traitCounts = {};
+            
+            let topTraitSample = [];
+            let emptyTopTraitCount = 0;
+            
+            data.forEach((d, index) => {
+                if (d.region) regionCounts[d.region] = (regionCounts[d.region] || 0) + 1;
+                if (d.budget_level) budgetCounts[d.budget_level] = (budgetCounts[d.budget_level] || 0) + 1;
+                
+                const topTrait = d.top_trait;
+                
+                if (index < 5) {
+                    topTraitSample.push({ index, value: topTrait, type: typeof topTrait });
+                }
+                
+                if (!topTrait || topTrait.trim() === '') {
+                    emptyTopTraitCount++;
+                } else {
+                    traitCounts[topTrait.trim()] = (traitCounts[topTrait.trim()] || 0) + 1;
+                }
+            });
+
+            console.log('=== 统计调试 ===');
+            console.log('数据行数:', data.length);
+            console.log('空top_trait数量:', emptyTopTraitCount);
+            console.log('前5个top_trait值:', topTraitSample);
+            console.log('完整的trait统计:', traitCounts);
+
+            animateNumber('total-cities', data.length);
+            animateNumber('total-regions', Object.keys(regionCounts).length);
+            animateNumber('luxury-count', budgetCounts['Luxury'] || 0);
+            animateNumber('culture-count', traitCounts['culture'] || 0);
+            animateNumber('beach-count', traitCounts['beaches'] || 0);
+        }
+
+        function animateNumber(id, target) {
+            const element = document.getElementById(id);
+            let current = 0;
+            const duration = 1500;
+            const step = target / (duration / 16);
+            
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) {
+                    element.textContent = target;
+                    clearInterval(timer);
+                } else {
+                    element.textContent = Math.floor(current);
+                }
+            }, 16);
+        }
+
+        function createGlobe(data) {
+            const filteredData = data.filter(d => d.latitude && d.longitude);
+            const hoverTexts = filteredData.map(d => 
+                `<b>${d.city}</b><br>${d.country} (${d.region})<br>预算: ${d.budget_level}<br>特色: ${d.top_trait}`
+            );
+            
+            // 检查当前主题
+            const isDark = document.body.classList.contains('dark-theme');
+            
+            // 根据主题设置颜色
+            const themeColors = {
+                markerColor: isDark ? '#2997ff' : '#0071e3',
+                markerLine: isDark ? '#1d1d1f' : '#ffffff',
+                landColor: isDark ? '#424245' : '#f5f5f7',
+                oceanColor: isDark ? '#1d1d1f' : '#e8f4fc',
+                countryColor: isDark ? '#424245' : '#d1d1d6',
+                gridColor: isDark ? '#424245' : '#e8e8ed'
+            };
+
+            const fig = {
+                data: [{
+                    type: 'scattergeo',
+                    lon: filteredData.map(d => parseFloat(d.longitude)),
+                    lat: filteredData.map(d => parseFloat(d.latitude)),
+                    mode: 'markers',
+                    marker: {
+                        size: 6,
+                        color: themeColors.markerColor,
+                        line: { width: 1.5, color: themeColors.markerLine },
+                        opacity: 0.85,
+                        symbol: 'circle'
+                    },
+                    text: hoverTexts,
+                    hoverinfo: 'text',
+                    name: '城市'
+                }],
+                layout: {
+                    geo: {
+                        projection: { type: 'orthographic' },
+                        showland: true,
+                        landcolor: themeColors.landColor,
+                        coastlinecolor: themeColors.countryColor,
+                        showocean: true,
+                        oceancolor: themeColors.oceanColor,
+                        showcountries: true,
+                        countrycolor: themeColors.countryColor,
+                        showframe: false,
+                        showcoastlines: true,
+                        coastlinewidth: 1,
+                        coastlinecolor: themeColors.countryColor,
+                        showlakes: true,
+                        lakecolor: themeColors.oceanColor,
+                        scope: 'world',
+                        bgcolor: 'rgba(0,0,0,0)',
+                        projection: {
+                            type: 'orthographic',
+                            rotation: { lon: 0, lat: 20, roll: 0 }
+                        },
+                        lonaxis: {
+                            showgrid: true,
+                            gridcolor: themeColors.gridColor,
+                            gridwidth: 0.5,
+                            dtick: 30
+                        },
+                        lataxis: {
+                            showgrid: true,
+                            gridcolor: themeColors.gridColor,
+                            gridwidth: 0.5,
+                            dtick: 30
+                        }
+                    },
+                    margin: { r: 0, t: 0, l: 0, b: 0 },
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    autosize: true,
+                    height: document.getElementById('globe').offsetHeight,
+                    width: document.getElementById('globe').offsetWidth
+                },
+                config: {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    scrollZoom: true,
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d'],
+                    modeBarButtonsToAdd: ['pan2d', 'zoomIn2d', 'zoomOut2d', 'resetScale2d']
+                }
+            };
+            
+            Plotly.newPlot('globe', fig.data, fig.layout, fig.config);
+            
+            // 添加地图点击事件
+            document.getElementById('globe').on('plotly_click', function(event) {
+                if (event.points && event.points.length > 0) {
+                    const point = event.points[0];
+                    const cityData = filteredData[point.pointIndex];
+                    if (cityData) {
+                        showCityDetail(cityData);
+                    }
+                }
+            });
+            
+            window.addEventListener('resize', function() {
+                const globeDiv = document.getElementById('globe');
+                Plotly.relayout('globe', {
+                    height: globeDiv.offsetHeight,
+                    width: globeDiv.offsetWidth
+                });
+                
+                const budgetDiv = document.getElementById('budget-card-fixed');
+                if (budgetDiv) {
+                    Plotly.relayout('budget-chart', {
+                        height: budgetDiv.offsetHeight - 60,
+                        width: budgetDiv.offsetWidth - 48
+                    });
+                }
+            });
+        }
+
+        function createRegionChart(data) {
+            const regionCounts = {};
+            data.forEach(d => {
+                if (d.region) {
+                    regionCounts[d.region] = (regionCounts[d.region] || 0) + 1;
+                }
+            });
+
+            const regionNames = Object.keys(regionCounts).map(r => {
+                const names = {
+                    'europe': '欧洲', 'north_america': '北美', 'asia': '亚洲',
+                    'africa': '非洲', 'south_america': '南美', 'oceania': '大洋洲',
+                    'middle_east': '中东'
+                };
+                return names[r] || r;
+            });
+            const counts = Object.values(regionCounts);
+
+            const colors = ['#0071e3', '#ff6b6b', '#5ac8fa', '#ffcc00', '#ff9500', '#34c759', '#af52de'];
+
+            const fig = {
+                data: [{
+                    type: 'bar',
+                    x: regionNames,
+                    y: counts,
+                    marker: { 
+                        color: colors.slice(0, regionNames.length),
+                        opacity: 0.95
+                    },
+                    text: counts,
+                    textposition: 'outside',
+                    textfont: { size: 12, color: '#6e6e73' }
+                }],
+                layout: {
+                    paper_bgcolor: 'rgba(255,255,255,0)',
+                    plot_bgcolor: 'rgba(255,255,255,0)',
+                    font: { color: '#1d1d1f', size: 12 },
+                    xaxis: { 
+                        tickfont: { size: 11 },
+                        gridcolor: '#f2f2f7',
+                        showgrid: false,
+                        color: '#6e6e73',
+                        tickangle: -25
+                    },
+                    yaxis: { 
+                        gridcolor: '#f2f2f7',
+                        title: { text: '城市数量', font: { size: 11, color: '#6e6e73' } },
+                        automargin: true,
+                        color: '#6e6e73'
+                    },
+                    margin: { t: 10, b: 45, l: 40, r: 10 },
+                    autosize: true,
+                    transition: { duration: 800 }
+                },
+                config: {
+                    responsive: true,
+                    displayModeBar: false,
+                    transition: { duration: 800 }
+                }
+            };
+            Plotly.newPlot('region-chart', fig.data, fig.layout, fig.config);
+        }
+
+        function createBudgetChart(data) {
+            const budgetCounts = {};
+            data.forEach(d => {
+                if (d.budget_level) {
+                    budgetCounts[d.budget_level] = (budgetCounts[d.budget_level] || 0) + 1;
+                }
+            });
+
+            const labels = ['经济型', '中端', '奢华'];
+            const values = [budgetCounts['Budget'] || 0, budgetCounts['Mid-range'] || 0, budgetCounts['Luxury'] || 0];
+            const colors = ['#34c759', '#5ac8fa', '#ff9500'];
+
+            const fig = {
+                data: [{
+                    type: 'pie',
+                    labels: labels,
+                    values: values,
+                    marker: {
+                        colors: colors,
+                        line: { color: '#ffffff', width: 2 }
+                    },
+                    hole: 0.5,
+                    domain: { y: [0.2, 1] },
+                    textinfo: 'percent',
+                    textfont: { size: 13, color: '#1d1d1f', weight: 'bold' },
+                    insidetextorientation: 'horizontal',
+                    textposition: 'inside'
+                }],
+                layout: {
+                    paper_bgcolor: 'rgba(255,255,255,0)',
+                    plot_bgcolor: 'rgba(255,255,255,0)',
+                    font: { color: '#1d1d1f' },
+                    margin: { t: 5, b: 5, l: 5, r: 5 },
+                    showlegend: true,
+                    legend: {
+                        font: { size: 12, color: '#6e6e73' },
+                        orientation: 'h',
+                        yanchor: 'bottom',
+                        y: 0.05,
+                        xanchor: 'center',
+                        x: 0.5,
+                        bgcolor: 'rgba(0,0,0,0)',
+                        itemwidth: 16,
+                        itemsizing: 'constant'
+                    },
+                    autosize: true
+                },
+                config: {
+                    responsive: true,
+                    displayModeBar: false,
+                    transition: { duration: 800 }
+                }
+            };
+            Plotly.newPlot('budget-chart', fig.data, fig.layout, fig.config);
+        }
+
+        function createDurationChart(data) {
+            const durationCounts = {};
+            const durationMapping = {
+                'weekend': 'weekend',
+                'short trip': 'short_trip',
+                'one week': 'one_week',
+                'long trip': 'long_trip'
+            };
+
+            data.forEach(d => {
+                if (d.ideal_durations) {
+                    // 从逗号分隔的字符串中解析时长
+                    const durations = d.ideal_durations.split(',');
+                    durations.forEach(dur => {
+                        const trimmedDur = dur.trim().toLowerCase();
+                        if (trimmedDur) {
+                            const key = durationMapping[trimmedDur] || 'other';
+                            durationCounts[key] = (durationCounts[key] || 0) + 1;
+                        }
+                    });
+                }
+            });
+
+            const durationOrder = ['weekend', 'short_trip', 'one_week', 'long_trip'];
+            const labels = durationOrder.filter(d => durationCounts[d]);
+            const values = labels.map(d => durationCounts[d]);
+
+            const durationNames = {
+                'weekend': '周末',
+                'short_trip': '短途',
+                'one_week': '一周',
+                'long_trip': '长途'
+            };
+
+            const colors = ['#0071e3', '#ff9500', '#34c759', '#af52de'];
+
+            const fig = {
+                data: [{
+                    type: 'bar',
+                    x: labels.map(l => durationNames[l] || l),
+                    y: values,
+                    marker: {
+                        color: colors.slice(0, labels.length),
+                        opacity: 0.95
+                    },
+                    text: values,
+                    textposition: 'outside',
+                    textfont: { size: 12, color: '#6e6e73' }
+                }],
+                layout: {
+                    paper_bgcolor: 'rgba(255,255,255,0)',
+                    plot_bgcolor: 'rgba(255,255,255,0)',
+                    font: { color: '#1d1d1f', size: 12 },
+                    xaxis: {
+                        tickfont: { size: 11, color: '#6e6e73' },
+                        gridcolor: '#f2f2f7',
+                        showgrid: false
+                    },
+                    yaxis: {
+                        gridcolor: '#f2f2f7',
+                        title: { text: '城市数量', font: { size: 11, color: '#6e6e73' } },
+                        automargin: true,
+                        color: '#6e6e73'
+                    },
+                    margin: { t: 10, b: 35, l: 35, r: 10 },
+                    autosize: true,
+                    transition: { duration: 800 }
+                },
+                config: {
+                    responsive: true,
+                    displayModeBar: false,
+                    transition: { duration: 800 }
+                }
+            };
+            Plotly.newPlot('duration-chart', fig.data, fig.layout, fig.config);
+        }
+
+        function createTraitChart(data) {
+            const traitCounts = {};
+            data.forEach(d => {
+                if (d.top_trait) {
+                    traitCounts[d.top_trait] = (traitCounts[d.top_trait] || 0) + 1;
+                }
+            });
+
+            const traitNames = {
+                'culture': '文化', 'nature': '自然', 'adventure': '冒险',
+                'beaches': '海滩', 'cuisine': '美食', 'urban': '都市',
+                'nightlife': '夜生活', 'seclusion': '静谧', 'wellness': '养生'
+            };
+
+            const traits = Object.keys(traitCounts).map(t => traitNames[t] || t);
+            const counts = Object.values(traitCounts);
+
+            const colors = ['#0071e3', '#34c759', '#ff9500', '#ff6b6b', '#af52de', '#5ac8fa', '#ffcc00', '#ff3b30', '#00d4ff'];
+
+            const fig = {
+                data: [{
+                    type: 'bar',
+                    y: traits,
+                    x: counts,
+                    orientation: 'h',
+                    marker: { 
+                        color: colors.slice(0, traits.length),
+                        opacity: 0.95
+                    },
+                    text: counts,
+                    textposition: 'outside',
+                    textfont: { size: 12, color: '#6e6e73' }
+                }],
+                layout: {
+                    paper_bgcolor: 'rgba(255,255,255,0)',
+                    plot_bgcolor: 'rgba(255,255,255,0)',
+                    font: { color: '#1d1d1f', size: 12 },
+                    xaxis: { 
+                        gridcolor: '#f2f2f7',
+                        showgrid: true,
+                        color: '#6e6e73'
+                    },
+                    yaxis: { 
+                        tickfont: { size: 11, color: '#6e6e73' },
+                        automargin: true,
+                        color: '#6e6e73'
+                    },
+                    margin: { t: 10, b: 20, l: 80, r: 30 },
+                    autosize: true,
+                    transition: { duration: 800 }
+                },
+                config: {
+                    responsive: true,
+                    displayModeBar: false,
+                    transition: { duration: 800 }
+                }
+            };
+            Plotly.newPlot('trait-chart', fig.data, fig.layout, fig.config);
+        }
+
+        function createTopCitiesList(data) {
+            const ratingCols = ['culture', 'adventure', 'nature', 'beaches', 'nightlife', 'cuisine', 'wellness', 'urban', 'seclusion'];
+            
+            const citiesWithScore = data.map(d => {
+                const scores = ratingCols.map(col => parseFloat(d[col]) || 0);
+                const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+                return { ...d, avgScore };
+            }).sort((a, b) => b.avgScore - a.avgScore).slice(0, 10);
+
+            const list = document.getElementById('top-cities-list');
+            citiesWithScore.forEach((city, index) => {
+                const li = document.createElement('li');
+                li.style.opacity = '0';
+                li.style.transform = 'translateX(-10px)';
+                li.innerHTML = `
+                    <span class="city-name">${index + 1}. ${city.city}, ${city.country}</span>
+                    <span class="city-score">${city.avgScore.toFixed(2)}</span>
+                `;
+                li.style.cursor = 'pointer';
+                li.addEventListener('click', () => {
+                    flyToCity(city.longitude, city.latitude, city.city);
+                });
+                list.appendChild(li);
+                
+                setTimeout(() => {
+                    li.style.transition = 'all 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+                    li.style.opacity = '1';
+                    li.style.transform = 'translateX(0)';
+                }, index * 100);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# 忽略下载的旅游图片文件夹
+travel_images/
+travel_images_search/
+
+# 忽略 Python 缓存和 IDE 配置文件
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+.venv/
+venv/
