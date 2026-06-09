@@ -1,9 +1,10 @@
-from flask import Flask, render_template, send_from_directory, request
+from flask import Flask, render_template, send_from_directory, request, jsonify
 from pyecharts.charts import Radar
 from pyecharts import options as opts
 import pandas as pd
 import os
-
+from scripts.data_loader import get_cities_list
+from scripts.route_planner import plan_routes
 
 app = Flask(__name__, template_folder='templates')
 
@@ -126,6 +127,25 @@ def planner():
         })
 
     return render_template("planner.html", cities=cities_list)
+
+@app.route('/api/plan_route', methods=['POST'])
+def api_plan_route():
+    data = request.get_json()
+    start_id = data.get('start_id')
+    end_id = data.get('end_id')
+    total_cities = int(data.get('total_cities', 3))
+    if not start_id or not end_id or start_id == end_id:
+        return jsonify({'error': '请选择不同的起点和终点'}), 400
+    routes = plan_routes(start_id, end_id, total_cities, num_routes=5)
+    if not routes:
+        return jsonify({'error': '无法生成足够路线'}), 400
+    return jsonify({'routes': routes})
+
+@app.route('/route_planner')
+def route_planner():
+    cities = get_cities_list()
+    return render_template('route_planner.html', cities=cities)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
