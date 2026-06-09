@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅行规划器 - 全球旅游数据</title>
+    <style>
+        /* 复用 dashboard 的 CSS 变量和基础样式 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f7;
+            --bg-card: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --accent-color: #0071e3;
+            --border-color: rgba(0, 0, 0, 0.06);
+            --shadow-color: rgba(0, 0, 0, 0.03);
+            --navbar-bg: rgba(255, 255, 255, 0.85);
+        }
+        body.dark-theme {
+            --bg-primary: #000000;
+            --bg-secondary: #1d1d1f;
+            --bg-card: #1d1d1f;
+            --text-primary: #f5f5f7;
+            --text-secondary: #a1a1a6;
+            --accent-color: #2997ff;
+            --border-color: rgba(255, 255, 255, 0.12);
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --navbar-bg: rgba(29, 29, 31, 0.85);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: background 0.4s, color 0.4s;
+        }
+        .navbar { position: fixed; top:0; left:0; right:0; padding:12px 24px; background: var(--navbar-bg); backdrop-filter: blur(20px); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between; z-index:1000; }
+        .navbar-brand { font-size:1.125rem; font-weight:600; }
+        .navbar-nav { display:flex; gap:24px; }
+        .nav-link { text-decoration:none; font-size:0.875rem; color:var(--text-secondary); padding:8px 16px; border-radius:8px; transition:0.3s; }
+        .nav-link:hover, .nav-link.active { color:var(--accent-color); background:rgba(0,0,0,0.05); }
+        .theme-toggle { background:var(--bg-card); border:1px solid var(--border-color); border-radius:50%; width:40px; height:40px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+        .container { max-width: 1200px; margin: 80px auto 40px; padding: 0 24px; }
+        .planner-card { background: var(--bg-card); border-radius: 32px; padding: 32px; border: 1px solid var(--border-color); margin-bottom: 32px; }
+        .form-group { margin-bottom: 24px; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-primary); }
+        select, input { width: 100%; padding: 12px 16px; border-radius: 30px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); font-size: 1rem; outline: none; transition: 0.2s; }
+        select:focus, input:focus { border-color: var(--accent-color); }
+        .row { display: flex; gap: 24px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 200px; }
+        .btn-generate { background: var(--accent-color); color: white; border: none; padding: 14px 28px; border-radius: 40px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; width: 100%; }
+        .btn-generate:hover { background: var(--accent-hover); transform: scale(1.02); }
+        .itinerary { margin-top: 32px; }
+        .day-card { background: var(--bg-secondary); border-radius: 24px; padding: 20px; margin-bottom: 16px; border-left: 4px solid var(--accent-color); }
+        .day-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 12px; }
+        .activity-list { list-style: none; margin-bottom: 12px; }
+        .activity-list li { padding: 8px 0; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; }
+        .cost-summary { background: var(--bg-card); border-radius: 20px; padding: 16px; margin-top: 20px; text-align: right; font-weight: 600; border: 1px solid var(--border-color); }
+        .error { color: #ff3b30; text-align: center; padding: 20px; }
+        @media (max-width: 768px) { .row { flex-direction: column; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">全球旅游</div>
+        <div class="navbar-nav">
+            <a href="/" class="nav-link">首页</a>
+            <a href="/explore" class="nav-link">探索城市</a>
+            <a href="/compare" class="nav-link">对比分析</a>
+            <a href="/planner" class="nav-link active">旅行规划器</a>
+        </div>
+        <button class="theme-toggle" id="themeToggle">🌙</button>
+    </nav>
+
+    <div class="container">
+        <div class="planner-card">
+            <h2>智能旅行规划器</h2>
+            <p style="margin: 12px 0 24px; color: var(--text-secondary);">选择目的地、天数与预算，系统将为您生成每日行程建议及费用估算</p>
+            <div class="row">
+                <div class="col">
+                    <label>城市</label>
+                    <select id="citySelect">
+                        <option value="">—— 请选择城市 ——</option>
+                        {% for city in cities %}
+                        <option value="{{ city.id }}" data-budget="{{ city.budget_level }}" data-traits='{{ city.traits | tojson }}'>{{ city.city }}, {{ city.country }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col">
+                    <label>旅行天数 (1-14天)</label>
+                    <input type="number" id="days" min="1" max="14" value="3">
+                </div>
+                <div class="col">
+                    <label>预算等级</label>
+                    <select id="budgetLevel">
+                        <option value="Budget">经济型</option>
+                        <option value="Mid-range" selected>中端</option>
+                        <option value="Luxury">奢华</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn-generate" id="generateBtn">生成行程计划</button>
+        </div>
+
+        <div id="itineraryResult" class="itinerary"></div>
+    </div>
+
+    <script>
+        // 从后端注入的城市数据
+        const citiesData = {{ cities | tojson | safe }};
+        const cityMap = new Map();
+        citiesData.forEach(c => { cityMap.set(c.id, c); });
+
+        // 活动库（根据特质匹配）
+        const activityLibrary = {
+            culture: ["参观历史博物馆", "漫步古城街区", "探访文化遗产", "体验当地艺术展", "参加传统文化工作坊"],
+            adventure: ["徒步探险", "山地骑行", "攀岩体验", "丛林穿越", "热气球之旅"],
+            nature: ["国家公园徒步", "观赏瀑布", "自然保护区游览", "湖泊划船", "植物园漫步"],
+            beaches: ["沙滩日光浴", "浮潜/潜水", "海边冲浪", "沙滩排球", "日落游艇巡游"],
+            nightlife: ["酒吧夜游", "现场音乐演出", "夜市美食", "夜店体验", "夜间观光巴士"],
+            cuisine: ["当地美食烹饪课", "米其林餐厅体验", "街头美食之旅", "酒庄品鉴", "特色小吃市场"],
+            default: ["城市观光", "自由购物", "休闲咖啡馆时光", "公园散步", "地标打卡"]
+        };
+
+        // 预算等级对应日均花费（美元，仅供参考）
+        const dailyCostMap = {
+            'Budget': 50,
+            'Mid-range': 120,
+            'Luxury': 300
+        };
+
+        // 获取城市最强的两个特质
+        function getTopTraits(cityTraits) {
+            const entries = Object.entries(cityTraits);
+            entries.sort((a,b) => b[1] - a[1]);
+            return entries.slice(0, 2).map(e => e[0]);
+        }
+
+        // 生成单日活动建议
+        function generateActivityForDay(dayIndex, topTraits, budgetLevel) {
+            let pool = [];
+            for (let trait of topTraits) {
+                if (activityLibrary[trait]) {
+                    pool.push(...activityLibrary[trait]);
+                }
+            }
+            if (pool.length === 0) pool = activityLibrary.default;
+            const unique = [...new Set(pool)];
+            const shuffled = unique.sort(() => 0.5 - Math.random());
+            const activities = shuffled.slice(0, 3);
+            let extra = '';
+            if (budgetLevel === 'Luxury') extra = '（高端体验推荐）';
+            else if (budgetLevel === 'Budget') extra = '（经济实惠选项）';
+            return activities.map(act => `${act} ${extra}`.trim());
+        }
+
+        // 估算当日花费
+        function estimateDayCost(budgetLevel, hasSpecial = false) {
+            let base = dailyCostMap[budgetLevel] || 120;
+            if (hasSpecial) base *= 1.2;
+            return Math.round(base);
+        }
+
+        // 生成完整行程
+        function generateItinerary(cityId, days, budgetLevel) {
+            const city = cityMap.get(cityId);
+            if (!city) return null;
+            const topTraits = getTopTraits(city.traits);
+            const itinerary = [];
+            let totalCost = 0;
+            for (let i = 1; i <= days; i++) {
+                const isWeekend = (i % 3 === 0);
+                const activities = generateActivityForDay(i, topTraits, budgetLevel);
+                const dayCost = estimateDayCost(budgetLevel, isWeekend);
+                totalCost += dayCost;
+                itinerary.push({
+                    day: i,
+                    activities: activities,
+                    cost: dayCost
+                });
+            }
+            return { itinerary, totalCost, cityName: city.city, budgetLevel, days };
+        }
+
+        // 渲染HTML（无表情符号）
+        function renderItinerary(plan) {
+            const container = document.getElementById('itineraryResult');
+            if (!plan) {
+                container.innerHTML = '<div class="error">请选择有效的城市</div>';
+                return;
+            }
+            let budgetText = '';
+            if (plan.budgetLevel === 'Budget') budgetText = '经济型';
+            else if (plan.budgetLevel === 'Mid-range') budgetText = '中端';
+            else budgetText = '奢华';
+
+            let html = `<div class="planner-card"><h3>${plan.cityName} · ${plan.days}天 · ${budgetText} 行程</h3>`;
+            plan.itinerary.forEach(day => {
+                html += `
+                    <div class="day-card">
+                        <div class="day-title">第 ${day.day} 天</div>
+                        <ul class="activity-list">
+                            ${day.activities.map(act => `<li>${act}</li>`).join('')}
+                        </ul>
+                        <div style="font-size:0.85rem; color:var(--text-secondary);">预计花费: $${day.cost}</div>
+                    </div>
+                `;
+            });
+            html += `<div class="cost-summary">行程总预算 (不含机票住宿): <span style="font-size:1.4rem; color:var(--accent-color);">$${plan.totalCost}</span> (日均 $${Math.round(plan.totalCost/plan.days)})</div>`;
+            html += `<p style="margin-top:16px; font-size:0.8rem; color:var(--text-secondary);">花费为当地消费估算（餐饮、门票、交通等），实际可能因季节和个人习惯浮动。</p>`;
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        // 事件绑定
+        document.getElementById('generateBtn').addEventListener('click', () => {
+            const cityId = document.getElementById('citySelect').value;
+            const days = parseInt(document.getElementById('days').value);
+            const budgetLevel = document.getElementById('budgetLevel').value;
+            if (!cityId) {
+                alert('请先选择一个城市');
+                return;
+            }
+            if (days < 1 || days > 14) {
+                alert('旅行天数请在1-14天之间');
+                return;
+            }
+            const plan = generateItinerary(cityId, days, budgetLevel);
+            renderItinerary(plan);
+        });
+
+        // 主题切换
+        function initThemeToggle() {
+            const toggle = document.getElementById('themeToggle');
+            const saved = localStorage.getItem('travelDashboardTheme');
+            if (saved === 'dark') document.body.classList.add('dark-theme');
+            toggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-theme');
+                localStorage.setItem('travelDashboardTheme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+            });
+        }
+        initThemeToggle();
+    </script>
+</body>
+</html>

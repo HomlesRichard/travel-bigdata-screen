@@ -32,13 +32,13 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="navbar-brand">🌍 全球旅游</div>
+        <div class="navbar-brand"> 全球旅游</div>
         <div class="navbar-nav">
             <a href="/" class="nav-link">首页</a>
             <a href="/explore" class="nav-link">探索城市</a>
         </div>
         <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
-            <span class="theme-icon">🌙</span>
+            <span class="theme-icon"></span>
         </button>
     </nav>
 
@@ -51,12 +51,12 @@
                  onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20400%20300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22%23ddd%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%3E%3C%2Ftext%3E%3C%2Fsvg%3E';">
 
             <div class="description">
-                <h3>📖 城市简介</h3>
+                <h3> 城市简介</h3>
                 <p>{{ city.short_description or '暂无描述' }}</p>
             </div>
 
             <div class="radar-container">
-                <h3>📊 城市特质雷达图</h3>
+                <h3> 城市特质雷达图</h3>
                 <div id="radarChart" style="height: 350px;"></div>
             </div>
         </div>
@@ -88,7 +88,7 @@
             </div>
 
             <div class="info-card">
-                <h3>🏷️ 特质评分</h3>
+                <h3> 特质评分</h3>
                 <div id="traitsScores" style="margin-top: 12px;"></div>
             </div>
         </div>
@@ -158,12 +158,12 @@
             const savedTheme = localStorage.getItem('travelDashboardTheme');
             if (savedTheme === 'dark') {
                 document.body.classList.add('dark-theme');
-                themeIcon.textContent = '☀️';
+                themeIcon.textContent = '';
             }
             themeToggle.addEventListener('click', () => {
                 document.body.classList.toggle('dark-theme');
                 const isDark = document.body.classList.contains('dark-theme');
-                themeIcon.textContent = isDark ? '☀️' : '🌙';
+                themeIcon.textContent = isDark ? '' : '';
                 localStorage.setItem('travelDashboardTheme', isDark ? 'dark' : 'light');
                 // 更新雷达图配色
                 const newFill = isDark ? 'rgba(41, 151, 255, 0.2)' : 'rgba(0, 113, 227, 0.2)';
@@ -173,5 +173,6 @@
         }
         initThemeToggle();
     </script>
+
 </body>
 </html>

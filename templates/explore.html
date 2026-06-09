@@ -2,256 +2,698 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>探索城市 - 全球旅游数据</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>探索城市 - 全球旅游数据大屏</title>
     <style>
-        /* 复用大屏的CSS变量和基本样式，此处略去重复部分 */
-        /* 关键增加：卡片网格、筛选栏、分页样式 */
+        /* 基础重置与变量定义（与 dashboard 一致） */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f7;
+            --bg-tertiary: #ffffff;
+            --bg-card: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --accent-color: #0071e3;
+            --accent-hover: #0077ed;
+            --border-color: rgba(0, 0, 0, 0.06);
+            --shadow-color: rgba(0, 0, 0, 0.03);
+            --navbar-bg: rgba(255, 255, 255, 0.85);
+        }
+
+        body.dark-theme {
+            --bg-primary: #000000;
+            --bg-secondary: #1d1d1f;
+            --bg-tertiary: #161617;
+            --bg-card: #1d1d1f;
+            --text-primary: #f5f5f7;
+            --text-secondary: #a1a1a6;
+            --accent-color: #2997ff;
+            --accent-hover: #4da3ff;
+            --border-color: rgba(255, 255, 255, 0.12);
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --navbar-bg: rgba(29, 29, 31, 0.85);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 30%, var(--bg-primary) 100%);
+            color: var(--text-primary);
+            transition: background 0.4s, color 0.4s;
+        }
+
+        /* 导航栏 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 12px 24px;
+            background: var(--navbar-bg);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .navbar-brand {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .navbar-nav {
+            display: flex;
+            gap: 24px;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--accent-color);
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        /* 主容器 */
+        .explore-container {
+            max-width: 1400px;
+            margin: 80px auto 40px;
+            padding: 0 24px;
+        }
+
+        /* 筛选栏 */
         .filters-bar {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 20px 24px;
+            margin-bottom: 28px;
+            border: 1px solid var(--border-color);
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 24px;
             align-items: center;
+            gap: 16px;
+            backdrop-filter: blur(10px);
         }
-        .filter-group {
-            background: var(--bg-card);
-            border-radius: 30px;
-            padding: 6px 16px;
+
+        .search-input {
+            flex: 2;
+            min-width: 200px;
+            padding: 12px 18px;
+            border-radius: 40px;
             border: 1px solid var(--border-color);
-            font-size: 0.875rem;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: 0.2s;
         }
+
+        .search-input:focus {
+            border-color: var(--accent-color);
+        }
+
+        .filter-select {
+            padding: 10px 16px;
+            border-radius: 40px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .rating-slider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-secondary);
+            padding: 6px 16px;
+            border-radius: 40px;
+        }
+
+        .rating-slider span {
+            font-size: 0.85rem;
+        }
+
+        .reset-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+
+        .reset-btn:hover {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        /* 视图切换与统计 */
+        .view-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .view-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .view-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+
+        .view-btn.active {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        .result-count {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* 网格视图 */
         .city-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 24px;
-            margin-top: 20px;
+            margin-top: 8px;
         }
+
         .city-card {
             background: var(--bg-card);
             border-radius: 24px;
             overflow: hidden;
             border: 1px solid var(--border-color);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
             cursor: pointer;
         }
+
         .city-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px var(--shadow-color);
+            transform: translateY(-6px);
+            box-shadow: 0 20px 35px -12px var(--shadow-color);
+            border-color: var(--accent-color);
         }
+
         .card-image {
-            height: 160px;
+            height: 180px;
             background-color: var(--bg-secondary);
             background-size: cover;
             background-position: center;
+            position: relative;
         }
+
+        .card-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: white;
+        }
+
         .card-content {
-            padding: 16px;
+            padding: 18px;
         }
+
         .city-name {
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             font-weight: 600;
             margin-bottom: 4px;
         }
+
         .country-region {
             font-size: 0.8rem;
             color: var(--text-secondary);
             margin-bottom: 12px;
         }
+
         .tags {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 8px;
             margin: 12px 0;
         }
+
         .tag {
             background: var(--bg-secondary);
             border-radius: 20px;
-            padding: 4px 10px;
+            padding: 4px 12px;
             font-size: 0.7rem;
+            font-weight: 500;
         }
+
         .rating {
             display: flex;
             align-items: center;
             gap: 6px;
-            margin-top: 8px;
+            margin-top: 10px;
+            font-size: 0.9rem;
         }
+
+        /* 列表视图 */
+        .city-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .city-list-item {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .city-list-item:hover {
+            background: var(--bg-secondary);
+            transform: translateX(6px);
+        }
+
+        .list-image {
+            width: 70px;
+            height: 70px;
+            border-radius: 16px;
+            background-color: var(--bg-secondary);
+            background-size: cover;
+            flex-shrink: 0;
+        }
+
+        .list-info {
+            flex: 1;
+        }
+
+        .list-info .city-name {
+            font-size: 1.1rem;
+            margin-bottom: 2px;
+        }
+
+        .list-stats {
+            display: flex;
+            gap: 16px;
+            margin-top: 6px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* 分页 */
         .pagination {
             display: flex;
             justify-content: center;
-            gap: 8px;
-            margin: 40px 0 20px;
+            gap: 10px;
+            margin: 48px 0 30px;
+            flex-wrap: wrap;
         }
+
         .page-btn {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px 14px;
+            border-radius: 30px;
+            padding: 8px 16px;
             cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
         }
+
         .page-btn.active {
             background: var(--accent-color);
             color: white;
             border-color: var(--accent-color);
         }
+
+        .page-btn:hover:not(.active) {
+            background: var(--bg-secondary);
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .explore-container { padding: 0 16px; margin-top: 70px; }
+            .filters-bar { flex-direction: column; align-items: stretch; }
+            .view-bar { flex-direction: column; align-items: flex-start; }
+            .city-grid { grid-template-columns: 1fr; }
+            .city-list-item { flex-direction: column; align-items: flex-start; }
+            .list-image { width: 100%; height: 140px; }
+        }
     </style>
 </head>
 <body>
     <nav class="navbar">
-    <div class="navbar-brand">全球旅游</div>
-    <div class="navbar-nav">
-        <a href="/" class="nav-link">首页 / 数据大屏</a>
-        <a href="/explore" class="nav-link active">探索城市</a>
-    </div>
-    <button class="theme-toggle" id="themeToggle">...</button>
-</nav>
-    <div class="dashboard" style="padding-top: 80px; max-width: 1400px; margin: auto;">
-        <h1>探索全球城市</h1>
+        <div class="navbar-brand">全球旅游</div>
+        <div class="navbar-nav">
+            <a href="/" class="nav-link">首页</a>
+            <a href="/explore" class="nav-link active">探索城市</a>
+            <a href="/compare" class="nav-link">对比分析</a>
+            <a href="/planner" class="nav-link">旅行规划器</a>
+        </div>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+            <span class="theme-icon"></span>
+        </button>
+    </nav>
+
+    <div class="explore-container">
+        <!-- 筛选栏 -->
         <div class="filters-bar">
-            <input type="text" id="searchInput" placeholder="🔍 搜索城市或国家" class="filter-group">
-            <select id="regionFilter" class="filter-group">
+            <input type="text" id="searchInput" class="search-input" placeholder=" 搜索城市、国家或特色...">
+            <select id="regionFilter" class="filter-select">
                 <option value="">全部区域</option>
                 <option value="europe">欧洲</option>
-                ...
+                <option value="asia">亚洲</option>
+                <option value="north_america">北美洲</option>
+                <option value="south_america">南美洲</option>
+                <option value="oceania">大洋洲</option>
+                <option value="africa">非洲</option>
+                <option value="middle_east">中东</option>
             </select>
-            <select id="budgetFilter" class="filter-group">
+            <select id="budgetFilter" class="filter-select">
                 <option value="">全部预算</option>
                 <option value="Budget">经济型</option>
                 <option value="Mid-range">中端</option>
                 <option value="Luxury">奢华</option>
             </select>
-            <div class="filter-group">
-                评分: <input type="range" id="ratingSlider" min="0" max="5" step="0.1" value="0"> <span id="ratingValue">0</span>
+            <div class="rating-slider">
+                <span>⭐ 评分 ≥</span>
+                <input type="range" id="ratingSlider" min="0" max="5" step="0.1" value="0">
+                <span id="ratingValue">0</span>
             </div>
-            <button id="resetFilters" class="filter-group">重置筛选</button>
+            <button id="resetFilters" class="reset-btn">重置筛选</button>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span id="resultCount"></span>
-            <div>
-                <button id="gridViewBtn" class="filter-group">网格视图</button>
-                <button id="listViewBtn" class="filter-group">列表视图</button>
+
+        <!-- 视图切换与统计 -->
+        <div class="view-bar">
+            <div class="view-buttons">
+                <button id="gridViewBtn" class="view-btn active">网格视图</button>
+                <button id="listViewBtn" class="view-btn">列表视图</button>
             </div>
+            <div class="result-count" id="resultCount">加载中...</div>
         </div>
+
+        <!-- 城市容器（动态渲染） -->
         <div id="cityContainer" class="city-grid"></div>
+
+        <!-- 分页组件 -->
         <div id="pagination" class="pagination"></div>
     </div>
 
     <script>
-        // 从后端获取城市数据 (Flask 注入)
-        const citiesData = {{ cities | tojson | safe }};
-        let currentView = 'grid';
-        let currentPage = 1;
-        const perPage = 12;
+        // 从后端注入城市数据 (Flask 模板变量)
+        const allCities = {{ cities | tojson | safe }};
 
-        // 计算每个城市的平均评分（特质分值平均）
+        // 辅助函数：计算城市综合评分（9项特质平均）
         function getAvgScore(city) {
-            const traits = ['culture','adventure','nature','beaches','nightlife','cuisine','wellness','urban','seclusion'];
+            const traitKeys = ['culture','adventure','nature','beaches','nightlife','cuisine','wellness','urban','seclusion'];
             let sum = 0, count = 0;
-            traits.forEach(t => {
-                let v = parseFloat(city[t]);
-                if (!isNaN(v)) { sum += v; count++; }
+            traitKeys.forEach(key => {
+                let val = parseFloat(city[key]);
+                if (!isNaN(val)) { sum += val; count++; }
             });
-            return count ? (sum / count).toFixed(2) : 0;
+            return count ? (sum / count).toFixed(2) : "0.00";
         }
 
+        // 状态变量
+        let currentView = 'grid';    // 'grid' or 'list'
+        let currentPage = 1;
+        const itemsPerPage = 12;      // 网格每页12个，列表每页10个
+        let filteredCities = [];
+
+        // DOM 元素
+        const container = document.getElementById('cityContainer');
+        const searchInput = document.getElementById('searchInput');
+        const regionSelect = document.getElementById('regionFilter');
+        const budgetSelect = document.getElementById('budgetFilter');
+        const ratingSlider = document.getElementById('ratingSlider');
+        const ratingSpan = document.getElementById('ratingValue');
+        const resetBtn = document.getElementById('resetFilters');
+        const gridBtn = document.getElementById('gridViewBtn');
+        const listBtn = document.getElementById('listViewBtn');
+        const resultSpan = document.getElementById('resultCount');
+        const paginationDiv = document.getElementById('pagination');
+
         // 筛选逻辑
-        function filterCities() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const region = document.getElementById('regionFilter').value;
-            const budget = document.getElementById('budgetFilter').value;
-            const minRating = parseFloat(document.getElementById('ratingSlider').value) || 0;
-            return citiesData.filter(city => {
-                if (searchTerm && !(city.city.toLowerCase().includes(searchTerm) || city.country.toLowerCase().includes(searchTerm))) return false;
+        function applyFilters() {
+            const keyword = searchInput.value.trim().toLowerCase();
+            const region = regionSelect.value;
+            const budget = budgetSelect.value;
+            const minRating = parseFloat(ratingSlider.value) || 0;
+
+            filteredCities = allCities.filter(city => {
+                // 搜索匹配
+                if (keyword) {
+                    const matchName = city.city.toLowerCase().includes(keyword);
+                    const matchCountry = city.country.toLowerCase().includes(keyword);
+                    const matchTrait = (city.top_trait && city.top_trait.toLowerCase().includes(keyword));
+                    if (!(matchName || matchCountry || matchTrait)) return false;
+                }
                 if (region && city.region !== region) return false;
                 if (budget && city.budget_level !== budget) return false;
                 if (getAvgScore(city) < minRating) return false;
                 return true;
             });
+            currentPage = 1;
+            updateResultCount();
+            renderCurrentView();
+        }
+
+        function updateResultCount() {
+            resultSpan.innerText = `找到 ${filteredCities.length} 座城市`;
+        }
+
+        // 分页数据切片
+        function getPaginatedCities() {
+            const per = (currentView === 'grid') ? itemsPerPage : 10;
+            const start = (currentPage - 1) * per;
+            const end = start + per;
+            return filteredCities.slice(start, end);
         }
 
         // 渲染网格卡片
-        function renderGrid(cities) {
-            const container = document.getElementById('cityContainer');
+        function renderGrid(citiesSlice) {
             container.className = 'city-grid';
-            container.innerHTML = cities.map(city => `
-                <div class="city-card" data-id="${city.id}">
-                    <div class="card-image" style="background-image: url('/static/images/travel_images/${city.id}.jpg'); background-size: cover;"></div>
-                    <div class="card-content">
-                        <div class="city-name">${city.city}</div>
-                        <div class="country-region">${city.country} · ${city.region}</div>
-                        <div class="tags">
-                            <span class="tag">${city.budget_level}</span>
-                            <span class="tag">${city.top_trait || '特色'}</span>
+            if (citiesSlice.length === 0) {
+                container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:60px;"> 没有找到符合条件的城市，试试调整筛选条件～</div>';
+                return;
+            }
+            container.innerHTML = citiesSlice.map(city => {
+                const avg = getAvgScore(city);
+                const imageUrl = `/static/images/travel_images/${city.id}.jpg`;
+                return `
+                    <div class="city-card" data-id="${city.id}">
+                        <div class="card-image" style="background-image: url('${imageUrl}'); background-size: cover;">
+                            <span class="card-badge">${city.budget_level || ''}</span>
                         </div>
-                        <div class="rating">⭐ ${getAvgScore(city)}</div>
+                        <div class="card-content">
+                            <div class="city-name">${escapeHtml(city.city)}</div>
+                            <div class="country-region">${escapeHtml(city.country)} · ${city.region || ''}</div>
+                            <div class="tags">
+                                <span class="tag">⭐ ${avg}</span>
+                                <span class="tag">${city.budget_level || '—'}</span>
+                                <span class="tag">${city.top_trait || '特色'}</span>
+                            </div>
+                            <div class="rating"> 推荐时长: ${city.ideal_durations ? city.ideal_durations.substring(0, 30) : '未提供'}</div>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             // 绑定卡片点击事件
             document.querySelectorAll('.city-card').forEach(card => {
                 card.addEventListener('click', () => {
-                    const id = card.dataset.id;
+                    const id = card.getAttribute('data-id');
                     window.location.href = `/city/${id}`;
                 });
             });
         }
 
-        function renderList(cities) {
-            const container = document.getElementById('cityContainer');
+        // 渲染列表视图
+        function renderList(citiesSlice) {
             container.className = 'city-list';
-            container.innerHTML = cities.map(city => `
-                <div class="city-list-item" data-id="${city.id}" style="display:flex; gap:16px; padding:12px; border-bottom:1px solid var(--border-color); align-items:center;">
-                    <div style="width:80px; height:80px; background:#eee; background-image:url('/static/images/travel_images/${city.id}.jpg'); background-size:cover; border-radius:12px;"></div>
-                    <div style="flex:1"><strong>${city.city}</strong>, ${city.country}<br>${city.budget_level} · ${city.top_trait} · ⭐ ${getAvgScore(city)}</div>
-                </div>
-            `).join('');
+            if (citiesSlice.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:60px;"> 没有找到符合条件的城市，试试调整筛选条件～</div>';
+                return;
+            }
+            container.innerHTML = citiesSlice.map(city => {
+                const avg = getAvgScore(city);
+                const imageUrl = `/static/images/travel_images/${city.id}.jpg`;
+                return `
+                    <div class="city-list-item" data-id="${city.id}">
+                        <div class="list-image" style="background-image: url('${imageUrl}'); background-size: cover;"></div>
+                        <div class="list-info">
+                            <div class="city-name">${escapeHtml(city.city)}</div>
+                            <div class="country-region">${escapeHtml(city.country)} · ${city.region || ''}</div>
+                            <div class="list-stats">
+                                <span> ${avg}</span>
+                                <span> ${city.budget_level || '—'}</span>
+                                <span> ${city.top_trait || '—'}</span>
+                                <span> ${city.ideal_durations ? city.ideal_durations.substring(0, 20) : '—'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
             document.querySelectorAll('.city-list-item').forEach(item => {
-                item.addEventListener('click', () => window.location.href = `/city/${item.dataset.id}`);
+                item.addEventListener('click', () => {
+                    const id = item.getAttribute('data-id');
+                    window.location.href = `/city/${id}`;
+                });
             });
         }
 
-        function updateView() {
-            const filtered = filterCities();
-            document.getElementById('resultCount').innerText = `找到 ${filtered.length} 座城市`;
-            const start = (currentPage-1)*perPage;
-            const paged = filtered.slice(start, start+perPage);
-            if (currentView === 'grid') renderGrid(paged);
-            else renderList(paged);
-            renderPagination(filtered.length);
+        // 简单防XSS
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
         }
 
-        function renderPagination(total) {
-            const totalPages = Math.ceil(total / perPage);
-            const container = document.getElementById('pagination');
-            container.innerHTML = '';
-            for (let i = 1; i <= totalPages; i++) {
-                const btn = document.createElement('button');
-                btn.innerText = i;
-                btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
-                btn.addEventListener('click', () => { currentPage = i; updateView(); });
-                container.appendChild(btn);
+        // 渲染分页控件
+        function renderPagination() {
+            const per = (currentView === 'grid') ? itemsPerPage : 10;
+            const totalPages = Math.ceil(filteredCities.length / per);
+            if (totalPages <= 1) {
+                paginationDiv.innerHTML = '';
+                return;
             }
+            let html = '';
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+            }
+            paginationDiv.innerHTML = html;
+            document.querySelectorAll('.page-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const page = parseInt(btn.getAttribute('data-page'));
+                    if (!isNaN(page) && page !== currentPage) {
+                        currentPage = page;
+                        renderCurrentView();
+                        // 滚动到顶部
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                });
+            });
         }
 
-        // 绑定事件
-        document.getElementById('searchInput').addEventListener('input', () => { currentPage=1; updateView(); });
-        document.getElementById('regionFilter').addEventListener('change', () => { currentPage=1; updateView(); });
-        document.getElementById('budgetFilter').addEventListener('change', () => { currentPage=1; updateView(); });
-        document.getElementById('ratingSlider').addEventListener('input', (e) => {
-            document.getElementById('ratingValue').innerText = e.target.value;
-            currentPage=1; updateView();
-        });
-        document.getElementById('resetFilters').addEventListener('click', () => {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('regionFilter').value = '';
-            document.getElementById('budgetFilter').value = '';
-            document.getElementById('ratingSlider').value = 0;
-            document.getElementById('ratingValue').innerText = 0;
-            currentPage=1; updateView();
-        });
-        document.getElementById('gridViewBtn').addEventListener('click', () => { currentView='grid'; updateView(); });
-        document.getElementById('listViewBtn').addEventListener('click', () => { currentView='list'; updateView(); });
-        updateView();
+        // 统一渲染入口
+        function renderCurrentView() {
+            const paginated = getPaginatedCities();
+            if (currentView === 'grid') {
+                renderGrid(paginated);
+            } else {
+                renderList(paginated);
+            }
+            renderPagination();
+        }
+
+        // 视图切换
+        function setView(view) {
+            currentView = view;
+            currentPage = 1;
+            if (view === 'grid') {
+                gridBtn.classList.add('active');
+                listBtn.classList.remove('active');
+            } else {
+                listBtn.classList.add('active');
+                gridBtn.classList.remove('active');
+            }
+            renderCurrentView();
+        }
+
+        // 事件绑定
+        function bindEvents() {
+            searchInput.addEventListener('input', () => { applyFilters(); });
+            regionSelect.addEventListener('change', () => { applyFilters(); });
+            budgetSelect.addEventListener('change', () => { applyFilters(); });
+            ratingSlider.addEventListener('input', (e) => {
+                ratingSpan.innerText = e.target.value;
+                applyFilters();
+            });
+            resetBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                regionSelect.value = '';
+                budgetSelect.value = '';
+                ratingSlider.value = '0';
+                ratingSpan.innerText = '0';
+                applyFilters();
+            });
+            gridBtn.addEventListener('click', () => setView('grid'));
+            listBtn.addEventListener('click', () => setView('list'));
+        }
+
+        // 主题切换（与 dashboard 保持一致）
+        function initThemeToggle() {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = themeToggle.querySelector('.theme-icon');
+            const savedTheme = localStorage.getItem('travelDashboardTheme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                themeIcon.textContent = '';
+            }
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-theme');
+                const isDark = document.body.classList.contains('dark-theme');
+                themeIcon.textContent = isDark ? '' : '';
+                localStorage.setItem('travelDashboardTheme', isDark ? 'dark' : 'light');
+            });
+        }
+
+        // 初始化
+        function init() {
+            bindEvents();
+            applyFilters();   // 初次筛选、渲染
+            initThemeToggle();
+        }
+
+        init();
     </script>
 </body>
 </html>
