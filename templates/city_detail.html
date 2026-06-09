@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ city.city }} - 城市详情 | 全球旅游数据</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        /* 复用 dashboard.html 中的所有 CSS 变量和基础样式，此处省略重复部分 */
+        /* 确保 .detail-container, .left-col, .right-col 等已定义 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; background: var(--bg-secondary); color: var(--text-primary); transition: background 0.4s, color 0.4s; }
+        .navbar { /* 与 dashboard 相同 */ }
+        .detail-container { max-width: 1280px; margin: 80px auto 40px; padding: 0 24px; display: flex; flex-wrap: wrap; gap: 32px; }
+        .left-col { flex: 1.2; min-width: 280px; }
+        .right-col { flex: 0.8; min-width: 260px; }
+        .city-image { width: 100%; height: 320px; object-fit: cover; border-radius: 24px; background: var(--bg-card); margin-bottom: 24px; }
+        .description { background: var(--bg-card); border-radius: 24px; padding: 20px; margin-bottom: 24px; border: 1px solid var(--border-color); line-height: 1.5; }
+        .radar-container { background: var(--bg-card); border-radius: 24px; padding: 20px; border: 1px solid var(--border-color); }
+        .info-card { background: var(--bg-card); border-radius: 24px; padding: 20px; margin-bottom: 24px; border: 1px solid var(--border-color); }
+        .info-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+        .info-item:last-child { border-bottom: none; }
+        .label { color: var(--text-secondary); font-weight: 500; }
+        .value { font-weight: 600; }
+        .trait-badge { display: inline-block; background: var(--bg-secondary); border-radius: 20px; padding: 4px 12px; font-size: 0.8rem; margin-right: 8px; margin-bottom: 8px; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: var(--accent-color); text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        @media (max-width: 768px) {
+            .detail-container { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">🌍 全球旅游</div>
+        <div class="navbar-nav">
+            <a href="/" class="nav-link">首页</a>
+            <a href="/explore" class="nav-link">探索城市</a>
+        </div>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+            <span class="theme-icon">🌙</span>
+        </button>
+    </nav>
+
+    <div class="detail-container">
+        <div class="left-col">
+            <a href="/explore" class="back-link">← 返回探索页</a>
+            <!-- 城市图片（如果不存在则显示占位符） -->
+            <img class="city-image" id="cityImage"
+                 src="/static/images/travel_images/{{ city.id }}.jpg"
+                 onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20400%20300%22%3E%3Crect%20width%3D%22400%22%20height%3D%22300%22%20fill%3D%22%23ddd%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2250%25%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%3E%3C%2Ftext%3E%3C%2Fsvg%3E';">
+
+            <div class="description">
+                <h3>📖 城市简介</h3>
+                <p>{{ city.short_description or '暂无描述' }}</p>
+            </div>
+
+            <div class="radar-container">
+                <h3>📊 城市特质雷达图</h3>
+                <div id="radarChart" style="height: 350px;"></div>
+            </div>
+        </div>
+
+        <div class="right-col">
+            <div class="info-card">
+                <h2>{{ city.city }}</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">{{ city.country }} · {{ city.region }}</p>
+                <div class="info-item">
+                    <span class="label">综合评分</span>
+                    <span class="value" id="avgScore">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">预算等级</span>
+                    <span class="value">{{ city.budget_level }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">推荐旅行时长</span>
+                    <span class="value">{{ city.ideal_durations or '未提供' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">最佳旅行季节</span>
+                    <span class="value">待补充</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">主要特色</span>
+                    <span class="value">{{ city.top_trait or '未标注' }}</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>🏷️ 特质评分</h3>
+                <div id="traitsScores" style="margin-top: 12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 从后端注入的城市数据
+        const city = {{ city | tojson | safe }};
+
+        // 计算平均分
+        const traits = ['culture', 'adventure', 'nature', 'beaches', 'nightlife', 'cuisine', 'wellness', 'urban', 'seclusion'];
+        const traitLabels = ['文化', '冒险', '自然', '海滩', '夜生活', '美食', '养生', '都市', '静谧'];
+        let scores = [];
+        let sum = 0, count = 0;
+        traits.forEach(t => {
+            let val = parseFloat(city[t]);
+            if (!isNaN(val)) {
+                scores.push(val);
+                sum += val;
+                count++;
+            } else {
+                scores.push(0);
+            }
+        });
+        const avg = count ? (sum / count).toFixed(2) : '0';
+        document.getElementById('avgScore').innerText = avg;
+
+        // 渲染特质评分（徽章形式）
+        const traitsContainer = document.getElementById('traitsScores');
+        traitsContainer.innerHTML = '';
+        traitLabels.forEach((label, idx) => {
+            const score = scores[idx];
+            if (score > 0) {
+                const badge = document.createElement('div');
+                badge.className = 'info-item';
+                badge.innerHTML = `<span class="label">${label}</span><span class="value">${score.toFixed(1)}</span>`;
+                traitsContainer.appendChild(badge);
+            }
+        });
+
+        // 雷达图
+        const radarData = [{
+            type: 'scatterpolar',
+            r: scores,
+            theta: traitLabels,
+            fill: 'toself',
+            fillcolor: 'rgba(0, 113, 227, 0.2)',
+            line: { color: '#0071e3', width: 2 },
+            marker: { color: '#0071e3', size: 4 }
+        }];
+        const layout = {
+            polar: {
+                radialaxis: { visible: true, range: [0, 5], gridcolor: '#e8e8ed', linecolor: '#e8e8ed' },
+                angularaxis: { tickfont: { size: 11 }, gridcolor: '#e8e8ed' },
+                bgcolor: 'rgba(0,0,0,0)'
+            },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            margin: { l: 40, r: 30, t: 30, b: 30 }
+        };
+        Plotly.newPlot('radarChart', radarData, layout, { responsive: true, displayModeBar: false });
+
+        // 主题切换（复用 dashboard 逻辑）
+        function initThemeToggle() {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = themeToggle.querySelector('.theme-icon');
+            const savedTheme = localStorage.getItem('travelDashboardTheme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                themeIcon.textContent = '☀️';
+            }
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-theme');
+                const isDark = document.body.classList.contains('dark-theme');
+                themeIcon.textContent = isDark ? '☀️' : '🌙';
+                localStorage.setItem('travelDashboardTheme', isDark ? 'dark' : 'light');
+                // 更新雷达图配色
+                const newFill = isDark ? 'rgba(41, 151, 255, 0.2)' : 'rgba(0, 113, 227, 0.2)';
+                const newLineColor = isDark ? '#2997ff' : '#0071e3';
+                Plotly.restyle('radarChart', { fillcolor: newFill, 'line.color': newLineColor });
+            });
+        }
+        initThemeToggle();
+    </script>
+</body>
+</html>

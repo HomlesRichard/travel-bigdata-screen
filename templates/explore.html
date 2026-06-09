@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>探索城市 - 全球旅游数据</title>
+    <style>
+        /* 复用大屏的CSS变量和基本样式，此处略去重复部分 */
+        /* 关键增加：卡片网格、筛选栏、分页样式 */
+        .filters-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+            align-items: center;
+        }
+        .filter-group {
+            background: var(--bg-card);
+            border-radius: 30px;
+            padding: 6px 16px;
+            border: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+        .city-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 20px;
+        }
+        .city-card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .city-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px var(--shadow-color);
+        }
+        .card-image {
+            height: 160px;
+            background-color: var(--bg-secondary);
+            background-size: cover;
+            background-position: center;
+        }
+        .card-content {
+            padding: 16px;
+        }
+        .city-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .country-region {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 12px 0;
+        }
+        .tag {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+        }
+        .rating {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 40px 0 20px;
+        }
+        .page-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 14px;
+            cursor: pointer;
+        }
+        .page-btn.active {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+    <div class="navbar-brand">全球旅游</div>
+    <div class="navbar-nav">
+        <a href="/" class="nav-link">首页 / 数据大屏</a>
+        <a href="/explore" class="nav-link active">探索城市</a>
+    </div>
+    <button class="theme-toggle" id="themeToggle">...</button>
+</nav>
+    <div class="dashboard" style="padding-top: 80px; max-width: 1400px; margin: auto;">
+        <h1>探索全球城市</h1>
+        <div class="filters-bar">
+            <input type="text" id="searchInput" placeholder="🔍 搜索城市或国家" class="filter-group">
+            <select id="regionFilter" class="filter-group">
+                <option value="">全部区域</option>
+                <option value="europe">欧洲</option>
+                ...
+            </select>
+            <select id="budgetFilter" class="filter-group">
+                <option value="">全部预算</option>
+                <option value="Budget">经济型</option>
+                <option value="Mid-range">中端</option>
+                <option value="Luxury">奢华</option>
+            </select>
+            <div class="filter-group">
+                评分: <input type="range" id="ratingSlider" min="0" max="5" step="0.1" value="0"> <span id="ratingValue">0</span>
+            </div>
+            <button id="resetFilters" class="filter-group">重置筛选</button>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="resultCount"></span>
+            <div>
+                <button id="gridViewBtn" class="filter-group">网格视图</button>
+                <button id="listViewBtn" class="filter-group">列表视图</button>
+            </div>
+        </div>
+        <div id="cityContainer" class="city-grid"></div>
+        <div id="pagination" class="pagination"></div>
+    </div>
+
+    <script>
+        // 从后端获取城市数据 (Flask 注入)
+        const citiesData = {{ cities | tojson | safe }};
+        let currentView = 'grid';
+        let currentPage = 1;
+        const perPage = 12;
+
+        // 计算每个城市的平均评分（特质分值平均）
+        function getAvgScore(city) {
+            const traits = ['culture','adventure','nature','beaches','nightlife','cuisine','wellness','urban','seclusion'];
+            let sum = 0, count = 0;
+            traits.forEach(t => {
+                let v = parseFloat(city[t]);
+                if (!isNaN(v)) { sum += v; count++; }
+            });
+            return count ? (sum / count).toFixed(2) : 0;
+        }
+
+        // 筛选逻辑
+        function filterCities() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const region = document.getElementById('regionFilter').value;
+            const budget = document.getElementById('budgetFilter').value;
+            const minRating = parseFloat(document.getElementById('ratingSlider').value) || 0;
+            return citiesData.filter(city => {
+                if (searchTerm && !(city.city.toLowerCase().includes(searchTerm) || city.country.toLowerCase().includes(searchTerm))) return false;
+                if (region && city.region !== region) return false;
+                if (budget && city.budget_level !== budget) return false;
+                if (getAvgScore(city) < minRating) return false;
+                return true;
+            });
+        }
+
+        // 渲染网格卡片
+        function renderGrid(cities) {
+            const container = document.getElementById('cityContainer');
+            container.className = 'city-grid';
+            container.innerHTML = cities.map(city => `
+                <div class="city-card" data-id="${city.id}">
+                    <div class="card-image" style="background-image: url('/static/images/travel_images/${city.id}.jpg'); background-size: cover;"></div>
+                    <div class="card-content">
+                        <div class="city-name">${city.city}</div>
+                        <div class="country-region">${city.country} · ${city.region}</div>
+                        <div class="tags">
+                            <span class="tag">${city.budget_level}</span>
+                            <span class="tag">${city.top_trait || '特色'}</span>
+                        </div>
+                        <div class="rating">⭐ ${getAvgScore(city)}</div>
+                    </div>
+                </div>
+            `).join('');
+            // 绑定卡片点击事件
+            document.querySelectorAll('.city-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const id = card.dataset.id;
+                    window.location.href = `/city/${id}`;
+                });
+            });
+        }
+
+        function renderList(cities) {
+            const container = document.getElementById('cityContainer');
+            container.className = 'city-list';
+            container.innerHTML = cities.map(city => `
+                <div class="city-list-item" data-id="${city.id}" style="display:flex; gap:16px; padding:12px; border-bottom:1px solid var(--border-color); align-items:center;">
+                    <div style="width:80px; height:80px; background:#eee; background-image:url('/static/images/travel_images/${city.id}.jpg'); background-size:cover; border-radius:12px;"></div>
+                    <div style="flex:1"><strong>${city.city}</strong>, ${city.country}<br>${city.budget_level} · ${city.top_trait} · ⭐ ${getAvgScore(city)}</div>
+                </div>
+            `).join('');
+            document.querySelectorAll('.city-list-item').forEach(item => {
+                item.addEventListener('click', () => window.location.href = `/city/${item.dataset.id}`);
+            });
+        }
+
+        function updateView() {
+            const filtered = filterCities();
+            document.getElementById('resultCount').innerText = `找到 ${filtered.length} 座城市`;
+            const start = (currentPage-1)*perPage;
+            const paged = filtered.slice(start, start+perPage);
+            if (currentView === 'grid') renderGrid(paged);
+            else renderList(paged);
+            renderPagination(filtered.length);
+        }
+
+        function renderPagination(total) {
+            const totalPages = Math.ceil(total / perPage);
+            const container = document.getElementById('pagination');
+            container.innerHTML = '';
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.innerText = i;
+                btn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                btn.addEventListener('click', () => { currentPage = i; updateView(); });
+                container.appendChild(btn);
+            }
+        }
+
+        // 绑定事件
+        document.getElementById('searchInput').addEventListener('input', () => { currentPage=1; updateView(); });
+        document.getElementById('regionFilter').addEventListener('change', () => { currentPage=1; updateView(); });
+        document.getElementById('budgetFilter').addEventListener('change', () => { currentPage=1; updateView(); });
+        document.getElementById('ratingSlider').addEventListener('input', (e) => {
+            document.getElementById('ratingValue').innerText = e.target.value;
+            currentPage=1; updateView();
+        });
+        document.getElementById('resetFilters').addEventListener('click', () => {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('regionFilter').value = '';
+            document.getElementById('budgetFilter').value = '';
+            document.getElementById('ratingSlider').value = 0;
+            document.getElementById('ratingValue').innerText = 0;
+            currentPage=1; updateView();
+        });
+        document.getElementById('gridViewBtn').addEventListener('click', () => { currentView='grid'; updateView(); });
+        document.getElementById('listViewBtn').addEventListener('click', () => { currentView='list'; updateView(); });
+        updateView();
+    </script>
+</body>
+</html>
