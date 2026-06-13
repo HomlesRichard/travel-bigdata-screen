@@ -1,15 +1,28 @@
 from flask import Flask, render_template, send_from_directory, request, jsonify
 from pyecharts.charts import Radar
 from pyecharts import options as opts
-import pandas as pd
 import os
-from scripts.data_loader import get_cities_list
-from scripts.route_planner import plan_routes
+import sys
+
+# 启动前检验数据库连接
+from mysql.db_checker import verify_and_setup_database
+success, db_config = verify_and_setup_database()
+
+if not success:
+    print("\n数据库配置失败，应用无法启动。")
+    print("请检查 MySQL 是否已启动，并确保配置正确。")
+    print("您可以:")
+    print("  1. 修改 mysql/config.ini 文件中的数据库配置")
+    print("  2. 运行 python mysql/import_to_mysql.py 导入数据")
+    sys.exit(1)
+
+# 导入数据库操作模块
+from mysql.db_loader import get_cities_list, get_city_by_id, get_all_cities, get_cities_by_ids
+from scripts.route_planner import *
 
 app = Flask(__name__, template_folder='templates')
 
 def create_radar():
-    # 假设这是你清洗后的全球旅游数据
     c = (
         Radar()
         .add_schema(schema=[
@@ -24,7 +37,6 @@ def create_radar():
 @app.route("/")
 def index():
     chart = create_radar()
-    # 关键点：使用 chart.render_embed() 获取 HTML 片段
     return render_template("dashboard.html", chart_html=chart.render_embed())
 
 @app.route("/data/<filename>")
@@ -39,93 +51,54 @@ def serve_images(filename):
 
 @app.route("/explore")
 def explore():
-    df = pd.read_csv('data/final_cleaned_travel_data.csv')
-    # 转换为字典列表供前端使用
-    cities = df.to_dict(orient='records')
+    cities = get_all_cities()
     return render_template("explore.html", cities=cities)
-
 
 @app.route("/city/<city_id>")
 def city_detail(city_id):
-    # 读取清洗后的数据（没有描述）
-    df_clean = pd.read_csv('data/final_cleaned_travel_data.csv')
-    city_row = df_clean[df_clean['id'] == city_id]
-    if city_row.empty:
+    city = get_city_by_id(city_id)
+    if not city:
         return "城市未找到", 404
-    city = city_row.iloc[0].to_dict()
-
-    # 从原始 CSV 中补充 short_description
-    df_original = pd.read_csv('data/Worldwide Travel Cities Dataset (Ratings and Climate).csv')
-    # 只取 id 和 short_description 两列，避免覆盖其他字段
-    desc_df = df_original[['id', 'short_description']].drop_duplicates(subset='id')
-    desc_dict = desc_df.set_index('id')['short_description'].to_dict()
-
-    # 补充描述，如果没有则使用默认文本
-    city['short_description'] = desc_dict.get(city_id, '暂无详细描述，欢迎探索这座魅力城市。')
-
     return render_template("city_detail.html", city=city)
-
 
 @app.route("/compare")
 def compare():
-    # 从查询参数获取城市id列表，例如 ?ids=id1,id2,id3
     ids_param = request.args.get('ids', '')
     city_ids = [cid.strip() for cid in ids_param.split(',') if cid.strip()]
-    # 限制最多5个城市
     if len(city_ids) > 5:
         city_ids = city_ids[:5]
-
-    # 读取清洗后的数据
-    df = pd.read_csv('data/final_cleaned_travel_data.csv')
-
-    # 读取原始数据获取 short_description（可选）
-    df_orig = pd.read_csv('data/Worldwide Travel Cities Dataset (Ratings and Climate).csv')
-    desc_dict = df_orig.set_index('id')['short_description'].fillna('').to_dict()
-
+    
     cities_data = []
     for cid in city_ids:
-        row = df[df['id'] == cid]
-        if not row.empty:
-            city = row.iloc[0].to_dict()
-            city['short_description'] = desc_dict.get(cid, '')
-            # 计算综合评分（9项特质平均）
-            trait_cols = ['culture', 'adventure', 'nature', 'beaches', 'nightlife', 'cuisine', 'wellness', 'urban',
-                          'seclusion']
+        city = get_city_by_id(cid)
+        if city:
+            trait_cols = ['culture', 'adventure', 'nature', 'beaches', 'nightlife', 'cuisine', 'wellness', 'urban', 'seclusion']
             scores = [float(city.get(col, 0)) for col in trait_cols]
             city['avg_score'] = round(sum(scores) / len(scores), 2) if scores else 0
             cities_data.append(city)
-
-    # 准备所有城市列表供选择器使用（用于添加城市）
-    all_cities = df[['id', 'city', 'country', 'region']].to_dict('records')
-
+    
+    all_cities = get_cities_list()
     return render_template("compare.html", cities=cities_data, all_cities=all_cities)
-
 
 @app.route("/planner")
 def planner():
-    # 读取城市列表供下拉选择
-    df = pd.read_csv('data/final_cleaned_travel_data.csv')
-    # 读取原始描述
-    df_orig = pd.read_csv('data/Worldwide Travel Cities Dataset (Ratings and Climate).csv')
-    desc_dict = df_orig.set_index('id')['short_description'].fillna('').to_dict()
-
+    cities = get_all_cities()
     cities_list = []
-    for _, row in df.iterrows():
+    for city in cities:
         cities_list.append({
-            'id': row['id'],
-            'city': row['city'],
-            'country': row['country'],
-            'budget_level': row['budget_level'],
+            'id': city['id'],
+            'city': city['city'],
+            'country': city['country'],
+            'budget_level': city['budget_level'],
             'traits': {
-                'culture': row.get('culture', 0),
-                'adventure': row.get('adventure', 0),
-                'nature': row.get('nature', 0),
-                'beaches': row.get('beaches', 0),
-                'nightlife': row.get('nightlife', 0),
-                'cuisine': row.get('cuisine', 0)
+                'culture': city.get('culture', 0),
+                'adventure': city.get('adventure', 0),
+                'nature': city.get('nature', 0),
+                'beaches': city.get('beaches', 0),
+                'nightlife': city.get('nightlife', 0),
+                'cuisine': city.get('cuisine', 0)
             }
         })
-
     return render_template("planner.html", cities=cities_list)
 
 @app.route('/api/plan_route', methods=['POST'])
@@ -133,19 +106,30 @@ def api_plan_route():
     data = request.get_json()
     start_id = data.get('start_id')
     end_id = data.get('end_id')
-    total_cities = int(data.get('total_cities', 3))
+    total_cities = data.get('total_cities', 4)
+
     if not start_id or not end_id or start_id == end_id:
         return jsonify({'error': '请选择不同的起点和终点'}), 400
-    routes = plan_routes(start_id, end_id, total_cities, num_routes=5)
+
+    routes = plan_routes(start_id, end_id, total_cities=total_cities)
     if not routes:
-        return jsonify({'error': '无法生成足够路线'}), 400
+        return jsonify({'error': '无法生成任何路线'}), 400
+
+    for route in routes:
+        if len(route['city_ids']) > total_cities:
+            truncated_ids = route['city_ids'][:total_cities]
+            truncated_dist = sum(
+                get_distance(truncated_ids[i], truncated_ids[i + 1]) for i in range(len(truncated_ids) - 1))
+            route['city_ids'] = truncated_ids
+            route['cities'] = route['cities'][:total_cities]
+            route['total_distance_km'] = round(truncated_dist, 1)
+
     return jsonify({'routes': routes})
 
 @app.route('/route_planner')
 def route_planner():
     cities = get_cities_list()
     return render_template('route_planner.html', cities=cities)
-
 
 if __name__ == "__main__":
     app.run(debug=True)

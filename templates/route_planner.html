@@ -50,7 +50,6 @@
             overflow-x: hidden;
         }
 
-        /* 导航栏 */
         .navbar {
             position: fixed;
             top: 0;
@@ -70,6 +69,12 @@
             font-size: 1.125rem;
             font-weight: 600;
             color: var(--text-primary);
+        }
+
+        .navbar-time {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-left: 16px;
         }
 
         .navbar-nav {
@@ -105,7 +110,6 @@
             transition: all 0.3s;
         }
 
-        /* 主布局：左右两栏 */
         .main-layout {
             display: flex;
             height: calc(100vh - 64px);
@@ -113,7 +117,6 @@
             overflow: hidden;
         }
 
-        /* 左侧地球仪区域 */
         .globe-panel {
             flex: 2;
             background: var(--bg-primary);
@@ -127,7 +130,6 @@
             height: 100%;
         }
 
-        /* 右侧控制与路线面板 */
         .sidebar-panel {
             flex: 1;
             background: var(--sidebar-bg);
@@ -139,7 +141,6 @@
             gap: 20px;
         }
 
-        /* 控制区块 */
         .control-group {
             background: var(--bg-card);
             border-radius: 20px;
@@ -207,7 +208,6 @@
             background: var(--accent-hover);
         }
 
-        /* 路线选项卡 */
         .route-tabs {
             display: flex;
             flex-wrap: wrap;
@@ -231,7 +231,6 @@
             border-color: var(--accent-color);
         }
 
-        /* 路线详情区域 */
         .route-detail {
             margin-top: 8px;
         }
@@ -272,6 +271,40 @@
             color: var(--text-secondary);
         }
 
+        .progress-container {
+            width: 100%;
+            max-width: 300px;
+            margin: 20px auto;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-secondary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-color), #34c759);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            animation: progressPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes progressPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .progress-text {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 12px;
+        }
+
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -279,7 +312,6 @@
             font-size: 0.85rem;
         }
 
-        /* 滚动条美化 */
         .sidebar-panel::-webkit-scrollbar {
             width: 6px;
         }
@@ -311,7 +343,7 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="navbar-brand">全球旅游</div>
+        <div class="navbar-brand">全球旅游<span class="navbar-time" id="beijingTime"></span></div>
         <div class="navbar-nav">
             <a href="/" class="nav-link">首页</a>
             <a href="/explore" class="nav-link">探索城市</a>
@@ -369,7 +401,6 @@
     </div>
 
     <script>
-        // 从后端注入的城市数据
         const allCities = {{ cities | tojson | safe }};
         const cityMap = new Map();
         allCities.forEach(c => { cityMap.set(c.id, c); });
@@ -378,7 +409,6 @@
         let currentRoutes = [];
         let activeRouteIndex = 0;
 
-        // 初始化地球仪（只显示城市点）
         function initGlobe() {
             const cityPoints = allCities.map(c => ({
                 lon: c.longitude,
@@ -423,7 +453,6 @@
             globeFigure = document.getElementById('globe');
         }
 
-        // 更新地球仪配色（主题切换时）
         function updateGlobeTheme() {
             const isDark = document.body.classList.contains('dark-theme');
             const landcolor = isDark ? '#424245' : '#f5f5f7';
@@ -437,7 +466,6 @@
             });
         }
 
-        // 在地球仪上绘制路线
         function drawRoute(routeCities) {
             if (!globeFigure) return;
             const lons = routeCities.map(c => c.longitude);
@@ -474,7 +502,6 @@
             Plotly.react('globe', newData, globeFigure.layout, { responsive: true });
         }
 
-        // 渲染右侧路线面板（简洁列表风格）
         function renderRoutesPanel(routes) {
             const panel = document.getElementById('routesPanel');
             if (!routes || routes.length === 0) {
@@ -487,7 +514,13 @@
             let tabsHtml = `<div class="control-title">推荐路线</div>
                             <div class="route-tabs">`;
             routes.forEach((route, idx) => {
-                tabsHtml += `<div class="route-tab ${idx === activeRouteIndex ? 'active' : ''}" data-idx="${idx}">路线 ${idx+1} (${route.total_distance_km} km)</div>`;
+                let label = '';
+                if (idx === 0) {
+                    label = `直达路线 (${route.total_distance_km} km)`;
+                } else {
+                    label = `推荐路线 ${idx} (${route.total_distance_km} km)`;
+                }
+                tabsHtml += `<div class="route-tab ${idx === activeRouteIndex ? 'active' : ''}" data-idx="${idx}">${label}</div>`;
             });
             tabsHtml += `</div>`;
 
@@ -506,7 +539,6 @@
 
             panel.innerHTML = tabsHtml + detailHtml;
 
-            // 绑定选项卡事件
             document.querySelectorAll('.route-tab').forEach(tab => {
                 tab.addEventListener('click', (e) => {
                     const idx = parseInt(tab.dataset.idx);
@@ -519,7 +551,6 @@
             });
         }
 
-        // 调用后端生成路线
         async function planRoute() {
             const startId = document.getElementById('startCity').value;
             const endId = document.getElementById('endCity').value;
@@ -534,61 +565,116 @@
                 return;
             }
 
-            // 显示加载状态
-            document.getElementById('routesPanel').innerHTML = `<div class="control-title">推荐路线</div>
-                                                                <div class="loading">正在规划路线...</div>`;
+            // 显示进度条
+            document.getElementById('routesPanel').innerHTML = `
+                <div class="control-title">推荐路线</div>
+                <div class="loading">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    <div class="progress-text" id="progressText">正在规划路线...</div>
+                </div>
+            `;
+
+            // 模拟进度动画
+            let progress = 0;
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                progressFill.style.width = progress + '%';
+                if (progress < 30) {
+                    progressText.textContent = '正在计算城市距离...';
+                } else if (progress < 60) {
+                    progressText.textContent = '正在筛选途经城市...';
+                } else {
+                    progressText.textContent = '正在生成最优路线...';
+                }
+            }, 300);
 
             try {
                 const response = await fetch('/api/plan_route', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ start_id: startId, end_id: endId, total_cities: totalCities })
+                    body: JSON.stringify({
+                        start_id: startId,
+                        end_id: endId,
+                        total_cities: totalCities
+                    })
                 });
                 const data = await response.json();
-                if (data.error) {
-                    alert(data.error);
-                    document.getElementById('routesPanel').innerHTML = `<div class="control-title">推荐路线</div>
-                                                                        <div class="empty-state">生成失败，请尝试其他参数</div>`;
-                    return;
-                }
-                activeRouteIndex = 0;
-                renderRoutesPanel(data.routes);
-                if (data.routes.length > 0) {
-                    drawRoute(data.routes[0].cities);
-                }
+                
+                // 完成进度
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                progressText.textContent = '路线生成完成！';
+
+                setTimeout(() => {
+                    if (data.error) {
+                        alert(data.error);
+                        document.getElementById('routesPanel').innerHTML = `<div class="control-title">推荐路线</div>
+                                                                            <div class="empty-state">生成失败，请尝试其他参数</div>`;
+                        return;
+                    }
+                    activeRouteIndex = 0;
+                    renderRoutesPanel(data.routes);
+                    if (data.routes.length > 0) {
+                        drawRoute(data.routes[0].cities);
+                    }
+                }, 500);
             } catch (err) {
+                clearInterval(progressInterval);
                 console.error(err);
                 alert('请求失败，请检查网络或后端');
+                document.getElementById('routesPanel').innerHTML = `<div class="control-title">推荐路线</div>
+                                                                    <div class="empty-state">请求失败，请重试</div>`;
             }
         }
 
-        // 主题切换
         function initThemeToggle() {
             const toggle = document.getElementById('themeToggle');
             const saved = localStorage.getItem('travelDashboardTheme');
             if (saved === 'dark') {
                 document.body.classList.add('dark-theme');
-                toggle.querySelector('.theme-icon').textContent = '☀️';
+                toggle.textContent = '☀️';
             } else {
-                toggle.querySelector('.theme-icon').textContent = '🌙';
+                toggle.textContent = '🌙';
             }
             toggle.addEventListener('click', () => {
                 document.body.classList.toggle('dark-theme');
                 const isDark = document.body.classList.contains('dark-theme');
                 localStorage.setItem('travelDashboardTheme', isDark ? 'dark' : 'light');
-                toggle.querySelector('.theme-icon').textContent = isDark ? '☀️' : '🌙';
+                toggle.textContent = isDark ? '☀️' : '🌙';
                 updateGlobeTheme();
             });
         }
 
-        // 滑块显示值
-        document.getElementById('totalCities').addEventListener('input', (e) => {
-            document.getElementById('cityCountValue').innerText = e.target.value;
+        const totalSlider = document.getElementById('totalCities');
+        const countSpan = document.getElementById('cityCountValue');
+        totalSlider.addEventListener('input', (e) => {
+            countSpan.innerText = e.target.value;
         });
 
         document.getElementById('planBtn').addEventListener('click', planRoute);
 
-        // 初始化
+        // 北京时间显示
+        function updateBeijingTime() {
+            const now = new Date();
+            const beijingOffset = 8 * 60; // UTC+8
+            const localOffset = now.getTimezoneOffset();
+            const beijingTime = new Date(now.getTime() + (beijingOffset + localOffset) * 60 * 1000);
+            const hours = beijingTime.getHours().toString().padStart(2, '0');
+            const minutes = beijingTime.getMinutes().toString().padStart(2, '0');
+            const seconds = beijingTime.getSeconds().toString().padStart(2, '0');
+            document.getElementById('beijingTime').textContent = ` | 北京时间 ${hours}:${minutes}:${seconds}`;
+        }
+
+        updateBeijingTime();
+        setInterval(updateBeijingTime, 1000);
+
         initGlobe();
         initThemeToggle();
     </script>
