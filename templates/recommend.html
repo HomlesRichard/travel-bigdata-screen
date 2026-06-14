@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能推荐 - 协同过滤 | 全球旅游数据</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f7;
+            --bg-card: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #6e6e73;
+            --accent-color: #0071e3;
+            --border-color: rgba(0, 0, 0, 0.06);
+            --navbar-bg: rgba(255, 255, 255, 0.85);
+        }
+        body.dark-theme {
+            --bg-primary: #000000;
+            --bg-secondary: #1d1d1f;
+            --bg-card: #1d1d1f;
+            --text-primary: #f5f5f7;
+            --text-secondary: #a1a1a6;
+            --accent-color: #2997ff;
+            --border-color: rgba(255, 255, 255, 0.12);
+            --navbar-bg: rgba(29, 29, 31, 0.85);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: background 0.4s, color 0.4s;
+        }
+        /* 导航栏保持不变 */
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0;
+            padding: 12px 24px; background: var(--navbar-bg); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between; z-index: 1000;
+        }
+        .navbar-brand { font-size: 1.125rem; font-weight: 600; }
+        .navbar-nav { display: flex; gap: 24px; }
+        .nav-link { text-decoration: none; font-size: 0.875rem; color: var(--text-secondary); padding: 8px 16px; border-radius: 8px; transition: 0.3s; }
+        .nav-link:hover, .nav-link.active { color: var(--accent-color); background: rgba(0,0,0,0.05); }
+        .theme-toggle { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .container { max-width: 1300px; margin: 80px auto 40px; padding: 0 24px; }
+        .mode-tabs { display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+        .mode-tab { padding: 8px 20px; border-radius: 30px; cursor: pointer; font-weight: 500; transition: 0.2s; }
+        .mode-tab.active { background: var(--accent-color); color: white; }
+        .form-group { margin-bottom: 24px; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; }
+        select, .multi-select { width: 100%; padding: 12px; border-radius: 20px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary); }
+        .slider-group { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px; }
+        .slider-item { flex: 1; min-width: 140px; }
+        .slider-item span { display: block; font-size: 0.8rem; margin-bottom: 6px; }
+        input[type="range"] { width: 100%; }
+        .btn { background: var(--accent-color); color: white; border: none; padding: 12px 28px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background: var(--accent-hover); }
+
+        /* 推荐结果：绝对无卡片样式，无边框、无背景、无圆角、无内边距 */
+        .rec-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 20px;
+        }
+        .rec-card {
+            /* 没有任何背景、边框、圆角、内边距 */
+            cursor: pointer;
+            transition: 0.1s;
+            padding: 0;
+            margin: 0;
+            background: transparent;
+            border: none;
+        }
+        .rec-card:hover {
+            /* 悬停只改变文字颜色，不产生任何背景或边框 */
+            color: var(--accent-color);
+        }
+        .rec-card .rec-city {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .rec-card .rec-country {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+        .rec-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 4px 0;
+        }
+        .rec-card .tag {
+            background: var(--bg-secondary);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+        }
+        .rec-card .similarity {
+            font-size: 0.7rem;
+            color: var(--accent-color);
+            text-align: right;
+            margin-top: 2px;
+        }
+        @media (max-width: 768px) { .navbar-nav { display: none; } .slider-group { flex-direction: column; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">全球旅游</div>
+        <div class="navbar-nav">
+            <a href="/" class="nav-link">首页</a>
+            <a href="/explore" class="nav-link">探索城市</a>
+            <a href="/compare" class="nav-link">对比分析</a>
+            <a href="/planner" class="nav-link">旅行规划器</a>
+            <a href="/route_planner" class="nav-link">路线规划</a>
+            <a href="/recommend" class="nav-link active">智能推荐</a>
+        </div>
+        <button class="theme-toggle" id="themeToggle">🌙</button>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h2>智能城市推荐</h2>
+            <p style="margin: 12px 0 24px; color: var(--text-secondary);">基于协同过滤算法，根据你喜欢的城市或偏好的旅行特质，推荐最匹配的旅游目的地。</p>
+
+            <div class="mode-tabs">
+                <div class="mode-tab active" data-mode="city">喜欢某些城市</div>
+                <div class="mode-tab" data-mode="trait">自定义特质权重</div>
+            </div>
+
+            <!-- 模式1：基于喜欢的城市 -->
+            <div id="cityMode" class="mode-content">
+                <div class="form-group">
+                    <label>选择你喜欢的城市 (可多选)</label>
+                    <select id="likeCities" class="multi-select" multiple size="8">
+                        {% for city in cities %}
+                        <option value="{{ city.id }}">{{ city.city }}, {{ city.country }} ({{ city.region }})</option>
+                        {% endfor %}
+                    </select>
+                    <small style="color:var(--text-secondary);">按住 Ctrl (Windows) 或 Command (Mac) 可多选</small>
+                </div>
+                <div class="form-group">
+                    <label>推荐数量</label>
+                    <input type="number" id="topN_city" value="10" min="1" max="30">
+                </div>
+                <button class="btn" id="recommendByCityBtn">开始推荐</button>
+            </div>
+
+            <!-- 模式2：基于特质权重 -->
+            <div id="traitMode" class="mode-content" style="display:none;">
+                <div class="slider-group">
+                    <div class="slider-item"><span>文化</span><input type="range" id="w_culture" min="0" max="5" step="0.5" value="3"></div>
+                    <div class="slider-item"><span>冒险</span><input type="range" id="w_adventure" min="0" max="5" step="0.5" value="3"></div>
+                    <div class="slider-item"><span>自然</span><input type="range" id="w_nature" min="0" max="5" step="0.5" value="3"></div>
+                    <div class="slider-item"><span>海滩</span><input type="range" id="w_beaches" min="0" max="5" step="0.5" value="3"></div>
+                    <div class="slider-item"><span>夜生活</span><input type="range" id="w_nightlife" min="0" max="5" step="0.5" value="3"></div>
+                    <div class="slider-item"><span>美食</span><input type="range" id="w_cuisine" min="0" max="5" step="0.5" value="3"></div>
+                    <div class="slider-item"><span>养生</span><input type="range" id="w_wellness" min="0" max="5" step="0.5" value="3"></div>
+                    <div class="slider-item"><span>都市</span><input type="range" id="w_urban" min="0" max="5" step="0.5" value="3"></div>
+                    <div class="slider-item"><span>静谧</span><input type="range" id="w_seclusion" min="0" max="5" step="0.5" value="3"></div>
+                </div>
+                <div class="form-group">
+                    <label>推荐数量</label>
+                    <input type="number" id="topN_trait" value="10" min="1" max="30">
+                </div>
+                <button class="btn" id="recommendByTraitBtn">开始推荐</button>
+            </div>
+
+            <div id="resultArea" style="margin-top: 32px;">
+                <h3>推荐结果</h3>
+                <div id="recList" class="rec-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const allCities = {{ cities | tojson | safe }};
+        const cityMap = new Map();
+        allCities.forEach(c => cityMap.set(c.id, c));
+
+        function initThemeToggle() {
+            const toggle = document.getElementById('themeToggle');
+            const saved = localStorage.getItem('travelDashboardTheme');
+            if (saved === 'dark') document.body.classList.add('dark-theme');
+            toggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-theme');
+                localStorage.setItem('travelDashboardTheme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+            });
+        }
+        initThemeToggle();
+
+        const cityModeDiv = document.getElementById('cityMode');
+        const traitModeDiv = document.getElementById('traitMode');
+        const tabs = document.querySelectorAll('.mode-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                if (tab.dataset.mode === 'city') {
+                    cityModeDiv.style.display = 'block';
+                    traitModeDiv.style.display = 'none';
+                } else {
+                    cityModeDiv.style.display = 'none';
+                    traitModeDiv.style.display = 'block';
+                }
+            });
+        });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        function renderRecommendations(recs) {
+            const container = document.getElementById('recList');
+            if (!recs || recs.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px;">暂无推荐结果，请调整参数重试</div>';
+                return;
+            }
+            container.innerHTML = recs.map(city => `
+                <div class="rec-card" data-id="${city.id}">
+                    <div class="rec-city">${escapeHtml(city.city)}</div>
+                    <div class="rec-country">${escapeHtml(city.country)} · ${city.region || ''}</div>
+                    <div class="rec-tags">
+                        <span class="tag">${city.budget_level || '—'}</span>
+                        <span class="tag">${city.top_trait || '特色'}</span>
+                    </div>
+                    <div class="similarity">匹配度: ${(city.similarity * 100).toFixed(1)}%</div>
+                </div>
+            `).join('');
+            document.querySelectorAll('.rec-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const id = card.getAttribute('data-id');
+                    window.location.href = `/city/${id}`;
+                });
+            });
+        }
+
+        document.getElementById('recommendByCityBtn').addEventListener('click', async () => {
+            const select = document.getElementById('likeCities');
+            const selected = Array.from(select.selectedOptions).map(opt => opt.value);
+            if (selected.length === 0) {
+                alert('请至少选择一个喜欢的城市');
+                return;
+            }
+            const topN = parseInt(document.getElementById('topN_city').value) || 10;
+            try {
+                const res = await fetch('/api/recommend_by_cities', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ city_ids: selected, top_n: topN })
+                });
+                const data = await res.json();
+                if (data.error) alert(data.error);
+                else renderRecommendations(data.recommendations);
+            } catch(e) { alert('请求失败'); }
+        });
+
+        document.getElementById('recommendByTraitBtn').addEventListener('click', async () => {
+            const weights = [
+                parseFloat(document.getElementById('w_culture').value),
+                parseFloat(document.getElementById('w_adventure').value),
+                parseFloat(document.getElementById('w_nature').value),
+                parseFloat(document.getElementById('w_beaches').value),
+                parseFloat(document.getElementById('w_nightlife').value),
+                parseFloat(document.getElementById('w_cuisine').value),
+                parseFloat(document.getElementById('w_wellness').value),
+                parseFloat(document.getElementById('w_urban').value),
+                parseFloat(document.getElementById('w_seclusion').value)
+            ];
+            const topN = parseInt(document.getElementById('topN_trait').value) || 10;
+            try {
+                const res = await fetch('/api/recommend_by_weights', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ weights: weights, top_n: topN })
+                });
+                const data = await res.json();
+                if (data.error) alert(data.error);
+                else renderRecommendations(data.recommendations);
+            } catch(e) { alert('请求失败'); }
+        });
+    </script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 from flask import Flask, render_template, send_from_directory, request, jsonify
+from scripts.recommend import recommend_by_city_ids, recommend_by_trait_weights
 from pyecharts.charts import Radar
 from pyecharts import options as opts
 import os
@@ -130,6 +131,34 @@ def api_plan_route():
 def route_planner():
     cities = get_cities_list()
     return render_template('route_planner.html', cities=cities)
+
+@app.route("/recommend")
+def recommend_page():
+    cities = get_cities_list()  # 用于选择喜欢的城市
+    return render_template("recommend.html", cities=cities)
+
+# 推荐 API（基于城市ID列表）
+@app.route("/api/recommend_by_cities", methods=['POST'])
+def api_recommend_by_cities():
+    data = request.get_json()
+    like_ids = data.get('city_ids', [])
+    top_n = data.get('top_n', 10)
+    if not like_ids:
+        return jsonify({'error': '请至少选择一个喜欢的城市'}), 400
+    recs = recommend_by_city_ids(like_ids, top_n)
+    return jsonify({'recommendations': recs})
+
+# 推荐 API（基于特质权重）
+@app.route("/api/recommend_by_weights", methods=['POST'])
+def api_recommend_by_weights():
+    data = request.get_json()
+    weights = data.get('weights', [])  # 长度为9的列表
+    top_n = data.get('top_n', 10)
+    if len(weights) != 9:
+        return jsonify({'error': '请提供9个特质的权重'}), 400
+    recs = recommend_by_trait_weights(weights, top_n)
+    return jsonify({'recommendations': recs})
+
 
 if __name__ == "__main__":
     app.run(debug=True)

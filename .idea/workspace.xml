@@ -7,8 +7,11 @@
     <list default="true" id="8968e5ef-e88e-44d5-8b8b-563577465a33" name="更改" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/app.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/route_planner.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/route_planner.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/地球2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/city_detail.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/city_detail.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/compare.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/compare.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/dashboard.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/explore.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/explore.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/planner.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/planner.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/templates/route_planner.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/route_planner.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
