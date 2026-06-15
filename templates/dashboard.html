@@ -28,10 +28,10 @@
 
         /* CSS 变量定义 */
         :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f5f5f7;
-            --bg-tertiary: #ffffff;
-            --bg-card: #ffffff;
+            --bg-primary: rgba(255, 255, 255, 0.7);
+            --bg-secondary: rgba(245, 245, 247, 0.7);
+            --bg-tertiary: rgba(255, 255, 255, 0.75);
+            --bg-card: rgba(255, 255, 255, 0.6);
             --text-primary: #1d1d1f;
             --text-secondary: #6e6e73;
             --accent-color: #0071e3;
@@ -46,10 +46,10 @@
 
         /* 暗色主题 */
         body.dark-theme {
-            --bg-primary: #000000;
-            --bg-secondary: #1d1d1f;
-            --bg-tertiary: #161617;
-            --bg-card: #1d1d1f;
+            --bg-primary: rgba(0, 0, 0, 0.6);
+            --bg-secondary: rgba(29, 29, 31, 0.6);
+            --bg-tertiary: rgba(22, 22, 23, 0.7);
+            --bg-card: rgba(29, 29, 31, 0.6);
             --text-primary: #f5f5f7;
             --text-secondary: #a1a1a6;
             --accent-color: #2997ff;
@@ -64,7 +64,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 30%, var(--bg-primary) 100%);
+            background: url('/static/images/travel_images/wallpaper/mint_foto-clouds-7050884_1920.jpg') no-repeat center center fixed;
+            background-size: cover;
             color: var(--text-primary);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;

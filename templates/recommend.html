@@ -7,9 +7,9 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f5f5f7;
-            --bg-card: #ffffff;
+            --bg-primary: rgba(255, 255, 255, 0.7);
+            --bg-secondary: rgba(245, 245, 247, 0.7);
+            --bg-card: rgba(255, 255, 255, 0.6);
             --text-primary: #1d1d1f;
             --text-secondary: #6e6e73;
             --accent-color: #0071e3;
@@ -17,9 +17,9 @@
             --navbar-bg: rgba(255, 255, 255, 0.85);
         }
         body.dark-theme {
-            --bg-primary: #000000;
-            --bg-secondary: #1d1d1f;
-            --bg-card: #1d1d1f;
+            --bg-primary: rgba(0, 0, 0, 0.6);
+            --bg-secondary: rgba(29, 29, 31, 0.6);
+            --bg-card: rgba(29, 29, 31, 0.6);
             --text-primary: #f5f5f7;
             --text-secondary: #a1a1a6;
             --accent-color: #2997ff;
@@ -28,7 +28,8 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-            background: var(--bg-secondary);
+            background: url('/static/images/travel_images/wallpaper/ajs1-lake-4839058_1920.jpg') no-repeat center center fixed;
+            background-size: cover;
             color: var(--text-primary);
             transition: background 0.4s, color 0.4s;
         }
@@ -43,7 +44,32 @@
         .navbar-nav { display: flex; gap: 24px; }
         .nav-link { text-decoration: none; font-size: 0.875rem; color: var(--text-secondary); padding: 8px 16px; border-radius: 8px; transition: 0.3s; }
         .nav-link:hover, .nav-link.active { color: var(--accent-color); background: rgba(0,0,0,0.05); }
-        .theme-toggle { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-secondary);
+            transform: scale(1.05);
+        }
+
+        .theme-icon {
+            font-size: 1.25rem;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .theme-toggle:hover .theme-icon {
+            transform: rotate(20deg);
+        }
         .container { max-width: 1300px; margin: 80px auto 40px; padding: 0 24px; }
         .mode-tabs { display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
         .mode-tab { padding: 8px 20px; border-radius: 30px; cursor: pointer; font-weight: 500; transition: 0.2s; }
@@ -119,7 +145,9 @@
             <a href="/route_planner" class="nav-link">路线规划</a>
             <a href="/recommend" class="nav-link active">智能推荐</a>
         </div>
-        <button class="theme-toggle" id="themeToggle">🌙</button>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+            <span class="theme-icon">🌙</span>
+        </button>
     </nav>
 
     <div class="container">
@@ -183,12 +211,20 @@
         allCities.forEach(c => cityMap.set(c.id, c));
 
         function initThemeToggle() {
-            const toggle = document.getElementById('themeToggle');
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = themeToggle.querySelector('.theme-icon');
             const saved = localStorage.getItem('travelDashboardTheme');
-            if (saved === 'dark') document.body.classList.add('dark-theme');
-            toggle.addEventListener('click', () => {
+            if (saved === 'dark') {
+                document.body.classList.add('dark-theme');
+                themeIcon.textContent = '☀️';
+            } else {
+                themeIcon.textContent = '🌙';
+            }
+            themeToggle.addEventListener('click', () => {
                 document.body.classList.toggle('dark-theme');
-                localStorage.setItem('travelDashboardTheme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+                const isDark = document.body.classList.contains('dark-theme');
+                localStorage.setItem('travelDashboardTheme', isDark ? 'dark' : 'light');
+                themeIcon.textContent = isDark ? '☀️' : '🌙';
             });
         }
         initThemeToggle();

@@ -13,10 +13,10 @@
         }
 
         :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f5f5f7;
-            --bg-tertiary: #ffffff;
-            --bg-card: #ffffff;
+            --bg-primary: rgba(255, 255, 255, 0.7);
+            --bg-secondary: rgba(245, 245, 247, 0.7);
+            --bg-tertiary: rgba(255, 255, 255, 0.75);
+            --bg-card: rgba(255, 255, 255, 0);
             --text-primary: #1d1d1f;
             --text-secondary: #6e6e73;
             --accent-color: #0071e3;
@@ -28,10 +28,10 @@
         }
 
         body.dark-theme {
-            --bg-primary: #000000;
-            --bg-secondary: #1d1d1f;
-            --bg-tertiary: #161617;
-            --bg-card: #1d1d1f;
+            --bg-primary: rgba(0, 0, 0, 0.6);
+            --bg-secondary: rgba(29, 29, 31, 0.6);
+            --bg-tertiary: rgba(22, 22, 23, 0.7);
+            --bg-card: rgba(29, 29, 31, 0);
             --text-primary: #f5f5f7;
             --text-secondary: #a1a1a6;
             --accent-color: #2997ff;
@@ -44,7 +44,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-secondary);
+            background: url('/static/images/travel_images/wallpaper/timhill-tree-2916763_1920.jpg') no-repeat center center fixed;
+            background-size: cover;
             color: var(--text-primary);
             transition: background 0.4s, color 0.4s;
             overflow-x: hidden;
@@ -107,7 +108,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-secondary);
+            transform: scale(1.05);
+        }
+
+        .theme-icon {
+            font-size: 1.25rem;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .theme-toggle:hover .theme-icon {
+            transform: rotate(20deg);
         }
 
         .main-layout {
@@ -133,7 +148,6 @@
         .sidebar-panel {
             flex: 1;
             background: var(--sidebar-bg);
-            backdrop-filter: blur(10px);
             overflow-y: auto;
             padding: 20px;
             display: flex;
@@ -352,7 +366,9 @@
             <a href="/route_planner" class="nav-link active">路线规划</a>
             <a href="/recommend" class="nav-link">智能推荐</a>
         </div>
-        <button class="theme-toggle" id="themeToggle">🌙</button>
+        <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
+            <span class="theme-icon">🌙</span>
+        </button>
     </nav>
 
     <div class="main-layout">

@@ -45,7 +45,7 @@ def serve_data(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'data')
     return send_from_directory(data_dir, filename)
 
-@app.route("/static/images/travel_images/<filename>")
+@app.route("/static/images/travel_images/<path:filename>")
 def serve_images(filename):
     image_dir = os.path.join(os.path.dirname(__file__), 'travel_images')
     return send_from_directory(image_dir, filename)
